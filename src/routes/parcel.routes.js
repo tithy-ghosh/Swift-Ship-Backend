@@ -4,7 +4,7 @@ import verifyToken from '../middleware/verifyToken.js'
 
 const router = express.Router()
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers ──
 
 const generateTrackingId = () => {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
@@ -54,7 +54,7 @@ const calculateDeliveryCharge = ({ type, weight, senderServiceCenter, receiverSe
   return { deliveryCost, deliveryZone, costBreakdown }
 }
 
-// ── Routes ─────────────────────────────────────────────────────────────────
+// ── Routes ──
 
 // POST /api/parcels/quote
 // Calculate delivery charge before confirming — no DB write
@@ -145,5 +145,25 @@ router.get('/track/:trackingId', async (req, res) => {
     res.status(500).json({ error: error.message })
   }
 })
-
+// DELETE /api/parcels/:id
+// Delete a parcel — only the user who created it can delete it
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const parcel = await Parcel.findById(req.params.id)
+ 
+    if (!parcel) {
+      return res.status(404).json({ error: 'Parcel not found' })
+    }
+ 
+    if (parcel.createdBy.uid !== req.user.uid) {
+      return res.status(403).json({ error: 'Not authorized to delete this parcel' })
+    }
+ 
+    await parcel.deleteOne()
+ 
+    res.json({ message: 'Parcel deleted successfully' })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
 export default router
