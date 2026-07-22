@@ -4,7 +4,7 @@ import cors from 'cors'
 import connectDB from './config/db.js'
 import userRoutes from './routes/user.routes.js'
 import parcelRoutes from './routes/parcel.routes.js'
-
+import paymentRoutes from './routes/payment.routes.js'
 const app = express()
 const PORT = process.env.PORT || 5000
 
@@ -15,6 +15,7 @@ app.use(express.json())
 // Routes
 app.use('/api/users', userRoutes)
 app.use('/api/parcels', parcelRoutes)
+app.use('/api/payment', paymentRoutes)
 
 // Health check
 app.get('/', (req, res) => {
