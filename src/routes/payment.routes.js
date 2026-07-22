@@ -1,12 +1,24 @@
-const express = require('express');
-const router = express.Router();
-const paymentController = require('../controllers/paymentController');
+import express from 'express'
+import verifyToken from '../middleware/verifyToken.js'
+import {
+  initPayment,
+  setPaymentMethod,
+  paymentSuccess,
+  paymentFail,
+  paymentCancel,
+  paymentIPN,
+} from '../controller/payment.controller.js'
 
-router.post('/init/:parcelId', paymentController.initPayment);
-router.post('/method/:parcelId', paymentController.setPaymentMethod);
-router.post('/success', paymentController.paymentSuccess);
-router.post('/fail', paymentController.paymentFail);
-router.post('/cancel', paymentController.paymentCancel);
-router.post('/ipn', paymentController.paymentIPN);
+const router = express.Router()
 
-module.exports = router;
+// User-initiated — require a valid Firebase token
+router.post('/init/:parcelId', verifyToken, initPayment)
+router.post('/method/:parcelId', verifyToken, setPaymentMethod)
+
+// SSLCommerz server-to-server / browser-redirect callbacks — no auth header, don't verifyToken
+router.post('/success', paymentSuccess)
+router.post('/fail', paymentFail)
+router.post('/cancel', paymentCancel)
+router.post('/ipn', paymentIPN)
+
+export default router

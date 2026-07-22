@@ -86,10 +86,15 @@ router.post('/', verifyToken, async (req, res) => {
       trackingId, type, title, weight,
       senderName, senderContact, senderRegion, senderServiceCenter, senderAddress, pickupInstruction,
       receiverName, receiverContact, receiverRegion, receiverServiceCenter, receiverAddress, deliveryInstruction,
+      paymentMethod,
     } = req.body
 
     if (!trackingId || !type || !senderName || !receiverName) {
       return res.status(400).json({ error: 'Missing required fields' })
+    }
+
+    if (!['cod', 'online'].includes(paymentMethod)) {
+      return res.status(400).json({ error: 'A valid paymentMethod (cod or online) is required' })
     }
 
     // Recalculate price on the server — never trust what the client sends
@@ -108,6 +113,8 @@ router.post('/', verifyToken, async (req, res) => {
       deliveryZone,
       costBreakdown,
       status: 'pending',
+      paymentMethod,
+      paymentStatus: 'pending',
       createdBy: {
         uid: req.user.uid,
         email: req.user.email,

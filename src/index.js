@@ -11,6 +11,8 @@ const PORT = process.env.PORT || 5000
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL }))
 app.use(express.json())
+// SSLCommerz posts its success/fail/cancel/ipn callbacks as application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }))
 
 // Routes
 app.use('/api/users', userRoutes)
