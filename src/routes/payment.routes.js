@@ -1,24 +1,25 @@
 import express from 'express'
-import verifyToken from '../middleware/verifyToken.js'
 import {
-  initPayment,
-  setPaymentMethod,
-  paymentSuccess,
-  paymentFail,
-  paymentCancel,
-  paymentIPN,
-} from '../controller/payment.controller.js'
+  handlePaymentCancellation,
+  handlePaymentFailure,
+  handlePaymentIpn,
+  handlePaymentSuccess,
+  initializePayment,
+  updatePaymentMethod,
+} from '../controllers/payment.controller.js'
+import asyncHandler from '../middleware/asyncHandler.js'
+import verifyToken from '../middleware/verifyToken.js'
 
 const router = express.Router()
 
-// User-initiated — require a valid Firebase token
-router.post('/init/:parcelId', verifyToken, initPayment)
-router.post('/method/:parcelId', verifyToken, setPaymentMethod)
+// Customer-initiated operations require a verified Firebase identity.
+router.post('/init/:parcelId', verifyToken, asyncHandler(initializePayment))
+router.post('/method/:parcelId', verifyToken, asyncHandler(updatePaymentMethod))
 
-// SSLCommerz server-to-server / browser-redirect callbacks — no auth header, don't verifyToken
-router.post('/success', paymentSuccess)
-router.post('/fail', paymentFail)
-router.post('/cancel', paymentCancel)
-router.post('/ipn', paymentIPN)
+// SSLCommerz callbacks cannot carry the customer's Firebase access token.
+router.post('/success', asyncHandler(handlePaymentSuccess))
+router.post('/fail', asyncHandler(handlePaymentFailure))
+router.post('/cancel', asyncHandler(handlePaymentCancellation))
+router.post('/ipn', asyncHandler(handlePaymentIpn))
 
 export default router

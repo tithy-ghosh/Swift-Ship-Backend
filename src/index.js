@@ -1,32 +1,30 @@
 import 'dotenv/config'
-import express from 'express'
-import cors from 'cors'
-import connectDB from './config/db.js'
-import userRoutes from './routes/user.routes.js'
-import parcelRoutes from './routes/parcel.routes.js'
-import paymentRoutes from './routes/payment.routes.js'
-const app = express()
-const PORT = process.env.PORT || 5000
+import app from './app.js'
+import connectDatabase from './config/db.js'
+import { env } from './config/env.js'
 
-// Middleware
-app.use(cors({ origin: process.env.CLIENT_URL }))
-app.use(express.json())
-// SSLCommerz posts its success/fail/cancel/ipn callbacks as application/x-www-form-urlencoded
-app.use(express.urlencoded({ extended: true }))
+/**
+ * Starts infrastructure before accepting traffic. A failed database connection
+ * rejects startup instead of leaving a partially functional process running.
+ */
+const startServer = async () => {
+  await connectDatabase()
 
-// Routes
-app.use('/api/users', userRoutes)
-app.use('/api/parcels', parcelRoutes)
-app.use('/api/payment', paymentRoutes)
-
-// Health check
-app.get('/', (req, res) => {
-  res.json({ message: 'Swift Ship server is running' })
-})
-
-// Start
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`)
+  const server = app.listen(env.port, () => {
+    console.log(`Server running on http://localhost:${env.port}`)
   })
+
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${env.port} is already in use. Stop the existing server and try again.`)
+    } else {
+      console.error('HTTP server failed:', error)
+    }
+    process.exit(1)
+  })
+}
+
+startServer().catch((error) => {
+  console.error('Server startup failed:', error)
+  process.exit(1)
 })
