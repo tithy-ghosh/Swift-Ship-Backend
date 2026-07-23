@@ -58,3 +58,17 @@ collected address data if postcode fields are added later.
 
 Errors are returned as `{ "error": "message" }`. Unexpected server errors are
 logged internally and exposed to clients only as `Internal server error`.
+
+## Tracking API
+
+Tracking events and payments are stored in their own MongoDB collections. A
+parcel no longer stores payment state or current tracking status.
+
+- `GET /api/tracking/:trackingId` — public lookup for a tracking URL
+- `GET /api/tracking?trackingId=SS-...` — public lookup for a search box
+- `POST /api/tracking/:trackingId/events` — append an event (admin/rider token)
+- `GET /api/payment/:parcelId` — read the authenticated owner's payment
+
+The event request body accepts `status`, `location`, `message`, and an optional
+ISO `eventTime`. Supported statuses are `pending`, `assigned`, `picked-up`,
+`in-transit`, `out-for-delivery`, `delivered`, and `cancelled`.

@@ -6,6 +6,7 @@ const parcelSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
     },
     type: {
       type: String,
@@ -47,25 +48,12 @@ const parcelSchema = new mongoose.Schema(
       },
     ],
 
-    // Status
-    status: {
-      type: String,
-      enum: ['pending', 'assigned', 'picked-up', 'in-transit', 'delivered', 'cancelled'],
-      default: 'pending',
-    },
-
     // Owner
     createdBy: {
       uid: { type: String, required: true },
       name: { type: String },
       email: { type: String },
     },
-    paymentMethod: { type: String, enum: ['online', 'cod'], required: true },
-    paymentStatus: { type: String, enum: ['pending', 'paid', 'failed', 'cancelled'], default: 'pending' },
-    transactionId: { type: String, unique: true, sparse: true }, // your internal tran_id
-    sslTransactionId: { type: String }, // val_id after validation
-    paidAmount: { type: Number },
-    paidAt: { type: Date }
   },
   { timestamps: true }
 )

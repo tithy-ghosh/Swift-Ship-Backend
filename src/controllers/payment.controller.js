@@ -1,4 +1,5 @@
 import Parcel from '../models/parcel.model.js'
+import Payment from '../models/payment.model.js'
 import {
   createPaymentSession,
   getPaymentRedirectUrl,
@@ -26,16 +27,33 @@ const markPaymentAsPaid = async (transactionId, validationId) => {
     return null
   }
 
-  return Parcel.findOneAndUpdate(
+  return Payment.findOneAndUpdate(
     { transactionId },
     {
-      paymentStatus: 'paid',
-      sslTransactionId: validationId,
+      status: 'paid',
+      gatewayValidationId: validationId,
       paidAmount: validation.amount,
       paidAt: new Date(),
     },
     { new: true }
+  ).populate(
+    { path: 'parcel', select: 'trackingId' }
   )
+}
+
+/** GET /api/payment/:parcelId */
+export const getPayment = async (req, res) => {
+  const result = await findOwnedParcel(req.params.parcelId, req.user.uid)
+  if (!result.parcel) {
+    return res.status(result.statusCode).json({ error: result.error })
+  }
+
+  const payment = await Payment.findOne({ parcel: result.parcel._id })
+  if (!payment) {
+    return res.status(404).json({ error: 'Payment not found' })
+  }
+
+  return res.json(payment)
 }
 
 /**
@@ -51,12 +69,22 @@ export const initializePayment = async (req, res) => {
   }
 
   const transactionId = `SWFT-${result.parcel._id}-${Date.now()}`
-  result.parcel.transactionId = transactionId
-  result.parcel.paymentMethod = 'online'
-  await result.parcel.save()
+  const payment = await Payment.findOneAndUpdate(
+    { parcel: result.parcel._id },
+    {
+      $set: {
+        trackingId: result.parcel.trackingId,
+        method: 'online',
+        status: 'pending',
+        transactionId,
+        amount: result.parcel.deliveryCost,
+      },
+    },
+    { new: true, upsert: true, runValidators: true }
+  )
 
   const gatewayUrl = await createPaymentSession(result.parcel, req.user, transactionId)
-  return res.json({ gatewayUrl })
+  return res.json({ gatewayUrl, paymentId: payment._id, transactionId })
 }
 
 /** POST /api/payment/method/:parcelId */
@@ -72,13 +100,23 @@ export const updatePaymentMethod = async (req, res) => {
     return res.status(result.statusCode).json({ error: result.error })
   }
 
-  result.parcel.paymentMethod = paymentMethod
-  if (paymentMethod === 'cod') {
-    result.parcel.paymentStatus = 'pending'
-  }
-  await result.parcel.save()
+  const payment = await Payment.findOneAndUpdate(
+    { parcel: result.parcel._id },
+    {
+      $set: {
+        trackingId: result.parcel.trackingId,
+        method: paymentMethod,
+        status: 'pending',
+        amount: result.parcel.deliveryCost,
+      },
+      ...(paymentMethod === 'cod'
+        ? { $unset: { transactionId: 1, gatewayValidationId: 1, paidAt: 1, paidAmount: 1 } }
+        : {}),
+    },
+    { new: true, upsert: true, runValidators: true }
+  )
 
-  return res.json({ success: true, parcel: result.parcel })
+  return res.json({ success: true, payment })
 }
 
 /**
@@ -101,7 +139,7 @@ export const handlePaymentSuccess = async (req, res) => {
     }
 
     return res.redirect(
-      getPaymentRedirectUrl({ payment: 'success', tracking: parcel.trackingId })
+      getPaymentRedirectUrl({ payment: 'success', tracking: parcel.parcel.trackingId })
     )
   } catch (error) {
     console.error('Payment success callback failed:', error)
@@ -112,9 +150,9 @@ export const handlePaymentSuccess = async (req, res) => {
 /** POST /api/payment/fail */
 export const handlePaymentFailure = async (req, res) => {
   if (req.body.tran_id) {
-    await Parcel.findOneAndUpdate(
+    await Payment.findOneAndUpdate(
       { transactionId: req.body.tran_id },
-      { paymentStatus: 'failed' }
+      { status: 'failed' }
     )
   }
 
@@ -124,9 +162,9 @@ export const handlePaymentFailure = async (req, res) => {
 /** POST /api/payment/cancel */
 export const handlePaymentCancellation = async (req, res) => {
   if (req.body.tran_id) {
-    await Parcel.findOneAndUpdate(
+    await Payment.findOneAndUpdate(
       { transactionId: req.body.tran_id },
-      { paymentStatus: 'cancelled' }
+      { status: 'cancelled' }
     )
   }
 

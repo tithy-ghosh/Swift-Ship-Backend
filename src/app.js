@@ -4,6 +4,7 @@ import { env } from './config/env.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 import parcelRoutes from './routes/parcel.routes.js'
 import paymentRoutes from './routes/payment.routes.js'
+import trackingRoutes from './routes/tracking.routes.js'
 import userRoutes from './routes/user.routes.js'
 
 /**
@@ -31,6 +32,7 @@ export const createApp = () => {
   app.use('/api/users', userRoutes)
   app.use('/api/parcels', parcelRoutes)
   app.use('/api/payment', paymentRoutes)
+  app.use('/api/tracking', trackingRoutes)
 
   app.use(notFoundHandler)
   app.use(errorHandler)
