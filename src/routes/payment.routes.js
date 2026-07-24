@@ -5,6 +5,7 @@ import {
   handlePaymentIpn,
   handlePaymentSuccess,
   getPayment,
+  getMyPaymentHistory,
   initializePayment,
   updatePaymentMethod,
 } from '../controllers/payment.controller.js'
@@ -14,6 +15,7 @@ import verifyToken from '../middleware/verifyToken.js'
 const router = express.Router()
 
 // Customer-initiated operations require a verified Firebase identity.
+router.get('/history/my', verifyToken, asyncHandler(getMyPaymentHistory))
 router.get('/:parcelId', verifyToken, asyncHandler(getPayment))
 router.post('/init/:parcelId', verifyToken, asyncHandler(initializePayment))
 router.post('/method/:parcelId', verifyToken, asyncHandler(updatePaymentMethod))

@@ -20,10 +20,22 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    photoURL: {
+      type: String,
+      default: '',
+    },
+    provider: {
+      type: String,
+      default: 'password',
+    },
     role: {
       type: String,
       enum: ['customer', 'rider', 'admin'],
       default: 'customer',
+    },
+    lastLoginAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   { timestamps: true }

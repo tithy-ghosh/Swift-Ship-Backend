@@ -28,6 +28,7 @@ const paymentSchema = new mongoose.Schema(
       required: true,
     },
     transactionId: { type: String, unique: true, sparse: true },
+    callbackTokenHash: { type: String, select: false },
     gatewayValidationId: String,
     amount: { type: Number, min: 0, required: true },
     paidAmount: { type: Number, min: 0 },

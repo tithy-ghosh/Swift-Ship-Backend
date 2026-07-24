@@ -3,31 +3,58 @@ import User from '../models/user.model.js'
 /**
  * POST /api/users
  *
- * Creates the MongoDB profile associated with a verified Firebase account.
- * Repeated calls are idempotent and return the existing profile.
+ * Ensures the verified Firebase account has a MongoDB profile.
+ *
+ * This endpoint is intentionally safe to call after every authentication.
+ * Firebase identity fields come from the verified token, while role and
+ * creation time are server-owned and only receive defaults on first insert.
  */
 export const createUser = async (req, res) => {
-  const { name, phone } = req.body
-  const { uid, email } = req.user
+  const { name, phone, photoURL, provider } = req.body
+  const { uid, email, name: tokenName, picture } = req.user
 
-  if (!name || !email) {
-    return res.status(400).json({ error: 'name and authenticated email are required' })
+  if (!uid || !email) {
+    return res.status(400).json({ error: 'The authenticated account must have a uid and email' })
   }
 
-  const existingUser = await User.findOne({ uid })
-  if (existingUser) {
-    return res.status(200).json(existingUser)
+  const safeName =
+    String(name || tokenName || email.split('@')[0]).trim().slice(0, 100)
+  const profileUpdates = {
+    name: safeName,
+    email: email.toLowerCase(),
+    lastLoginAt: new Date(),
   }
 
-  const user = await User.create({
-    uid,
-    name,
-    email,
-    phone: phone || '',
-    role: 'customer',
-  })
+  // Empty values from a provider must not erase details collected previously.
+  if (typeof phone === 'string' && phone.trim()) {
+    profileUpdates.phone = phone.trim().slice(0, 30)
+  }
+  const safePhotoURL = photoURL || picture
+  if (typeof safePhotoURL === 'string' && safePhotoURL.trim()) {
+    profileUpdates.photoURL = safePhotoURL.trim().slice(0, 2048)
+  }
+  if (typeof provider === 'string' && provider.trim()) {
+    profileUpdates.provider = provider.trim().slice(0, 50)
+  }
 
-  return res.status(201).json(user)
+  const user = await User.findOneAndUpdate(
+    { uid },
+    {
+      $set: profileUpdates,
+      $setOnInsert: {
+        uid,
+        role: 'customer',
+      },
+    },
+    {
+      new: true,
+      upsert: true,
+      runValidators: true,
+      setDefaultsOnInsert: true,
+    }
+  )
+
+  return res.status(200).json(user)
 }
 
 /** GET /api/users/me */

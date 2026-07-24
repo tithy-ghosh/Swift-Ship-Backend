@@ -27,19 +27,21 @@ const getClient = () =>
  * @param {import('../models/parcel.model.js').default} parcel
  * @param {{email?: string}} authenticatedUser
  * @param {string} transactionId
+ * @param {string} callbackToken
  * @returns {object}
  */
-const buildPaymentPayload = (parcel, authenticatedUser, transactionId) => {
+const buildPaymentPayload = (parcel, authenticatedUser, transactionId, callbackToken) => {
   const backendUrl = normalizeBaseUrl(requireEnv('BACKEND_URL'))
+  const callbackQuery = new URLSearchParams({ token: callbackToken }).toString()
 
   return {
     total_amount: parcel.deliveryCost,
     currency: 'BDT',
     tran_id: transactionId,
-    success_url: `${backendUrl}/api/payment/success`,
-    fail_url: `${backendUrl}/api/payment/fail`,
-    cancel_url: `${backendUrl}/api/payment/cancel`,
-    ipn_url: `${backendUrl}/api/payment/ipn`,
+    success_url: `${backendUrl}/api/payment/success?${callbackQuery}`,
+    fail_url: `${backendUrl}/api/payment/fail?${callbackQuery}`,
+    cancel_url: `${backendUrl}/api/payment/cancel?${callbackQuery}`,
+    ipn_url: `${backendUrl}/api/payment/ipn?${callbackQuery}`,
     shipping_method: 'Courier',
     product_name: 'Parcel Delivery',
     product_category: 'Delivery',
@@ -64,9 +66,14 @@ const buildPaymentPayload = (parcel, authenticatedUser, transactionId) => {
  *
  * @returns {Promise<string>} Gateway checkout URL.
  */
-export const createPaymentSession = async (parcel, authenticatedUser, transactionId) => {
+export const createPaymentSession = async (
+  parcel,
+  authenticatedUser,
+  transactionId,
+  callbackToken
+) => {
   const response = await getClient().init(
-    buildPaymentPayload(parcel, authenticatedUser, transactionId)
+    buildPaymentPayload(parcel, authenticatedUser, transactionId, callbackToken)
   )
 
   if (response?.status !== 'SUCCESS' || !response?.GatewayPageURL) {
