@@ -18,9 +18,16 @@ export const errorHandler = (error, req, res, next) => {
 
   console.error(`[${req.method} ${req.originalUrl}]`, error)
 
-  const statusCode = Number.isInteger(error.statusCode) ? error.statusCode : 500
+  const statusCode =
+    error.name === 'MulterError'
+      ? 400
+      : Number.isInteger(error.statusCode)
+        ? error.statusCode
+        : 500
   const message =
-    statusCode >= 500 && !error.expose ? 'Internal server error' : error.message
+    error.name === 'MulterError' && error.code === 'LIMIT_FILE_SIZE'
+      ? 'Profile image must be 2 MB or smaller'
+      : statusCode >= 500 && !error.expose ? 'Internal server error' : error.message
 
   return res.status(statusCode).json({ error: message })
 }

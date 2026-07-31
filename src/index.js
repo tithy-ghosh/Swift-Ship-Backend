@@ -25,6 +25,12 @@ const startServer = async () => {
 }
 
 startServer().catch((error) => {
-  console.error('Server startup failed:', error)
+  if (error.name === 'MongooseServerSelectionError') {
+    console.error(
+      'MongoDB Atlas is unreachable after multiple attempts. Check that the cluster is running and that the current network allows outbound TCP port 27017.'
+    )
+  } else {
+    console.error(`Server startup failed: ${error.message}`)
+  }
   process.exit(1)
 })

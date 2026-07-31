@@ -29,10 +29,13 @@ export const createUser = async (req, res) => {
   if (typeof phone === 'string' && phone.trim()) {
     profileUpdates.phone = phone.trim().slice(0, 30)
   }
+  // A provider picture is an initial fallback only. Updating it on every
+  // login would overwrite a profile image the user uploaded later.
   const safePhotoURL = photoURL || picture
-  if (typeof safePhotoURL === 'string' && safePhotoURL.trim()) {
-    profileUpdates.photoURL = safePhotoURL.trim().slice(0, 2048)
-  }
+  const initialPhotoURL =
+    typeof safePhotoURL === 'string' && safePhotoURL.trim()
+      ? safePhotoURL.trim().slice(0, 2048)
+      : undefined
   if (typeof provider === 'string' && provider.trim()) {
     profileUpdates.provider = provider.trim().slice(0, 50)
   }
@@ -44,6 +47,7 @@ export const createUser = async (req, res) => {
       $setOnInsert: {
         uid,
         role: 'customer',
+        ...(initialPhotoURL ? { photoURL: initialPhotoURL } : {}),
       },
     },
     {
@@ -66,4 +70,34 @@ export const getCurrentUser = async (req, res) => {
   }
 
   return res.json(user)
+}
+
+/** PUT/api/users/me */
+
+export const updateProfile = async (req, res) => {
+  const { name, phone, photoURL, address } = req.body;
+  const { uid } = req.user;
+  const profileUpdates = {}
+  if(typeof name === 'string' && name.trim()){
+    profileUpdates.name = name.trim().slice(0, 100)
+  }
+  if(typeof phone === 'string'){
+    profileUpdates.phone = phone.trim().slice(0, 30)
+  }
+  if(typeof photoURL === 'string'){
+    profileUpdates.photoURL = photoURL.trim().slice(0, 2048)
+  }
+  if (typeof address === 'string') {
+    profileUpdates.address = address.trim().slice(0, 500)
+  }
+   const user = await User.findOneAndUpdate(
+    { uid },
+    { $set: profileUpdates },
+    { new: true, runValidators: true }
+  )
+
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' })
+  }
+   return res.status(200).json(user)
 }

@@ -6,23 +6,22 @@ import parcelRoutes from './routes/parcel.routes.js'
 import paymentRoutes from './routes/payment.routes.js'
 import trackingRoutes from './routes/tracking.routes.js'
 import userRoutes from './routes/user.routes.js'
+import uploadRoutes from './routes/upload.routes.js'
 
-/**
- * Creates the Express application without opening a network port.
- *
- * Keeping construction separate from startup makes the complete HTTP app
- * importable by integration tests without requiring a live server.
- *
- * @returns {import('express').Express}
- */
 export const createApp = () => {
   const app = express()
 
   app.disable('x-powered-by')
-  app.use(cors({ origin: env.allowedFrontendOrigin }))
+  
+  // ✅ UPDATED CORS: Explicitly allow Authorization header
+  app.use(cors({ 
+    origin: env.allowedFrontendOrigin,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+  }))
+  
   app.use(express.json({ limit: '100kb' }))
-
-  // SSLCommerz sends browser callbacks and IPNs as form-encoded payloads.
   app.use(express.urlencoded({ extended: true, limit: '100kb' }))
 
   app.get('/', (req, res) => {
@@ -33,7 +32,7 @@ export const createApp = () => {
   app.use('/api/parcels', parcelRoutes)
   app.use('/api/payment', paymentRoutes)
   app.use('/api/tracking', trackingRoutes)
-
+  app.use('/api/upload', uploadRoutes)
   app.use(notFoundHandler)
   app.use(errorHandler)
 
