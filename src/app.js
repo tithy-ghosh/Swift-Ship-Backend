@@ -7,6 +7,8 @@ import paymentRoutes from './routes/payment.routes.js'
 import trackingRoutes from './routes/tracking.routes.js'
 import userRoutes from './routes/user.routes.js'
 import uploadRoutes from './routes/upload.routes.js'
+import riderApplicationRoutes from './routes/riderApplication.routes.js'
+
 
 export const createApp = () => {
   const app = express()
@@ -33,6 +35,7 @@ export const createApp = () => {
   app.use('/api/payment', paymentRoutes)
   app.use('/api/tracking', trackingRoutes)
   app.use('/api/upload', uploadRoutes)
+  app.use('/api/rider-applications', riderApplicationRoutes)
   app.use(notFoundHandler)
   app.use(errorHandler)
 
