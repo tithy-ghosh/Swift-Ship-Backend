@@ -1,13 +1,10 @@
 import admin from '../config/firebase.js'
 
 const verifyToken = async (req, res, next) => {
-  // 🔍 DEBUG: Print all headers to see what the backend is actually receiving
-  console.log(' [verifyToken] ALL HEADERS RECEIVED:', JSON.stringify(req.headers, null, 2));
-  
   const authHeader = req.headers.authorization
 
   if (!authHeader?.startsWith('Bearer ')) {
-    console.error('❌ [verifyToken] Authorization header is missing or invalid:', authHeader);
+    console.warn('Firebase token missing or authorization scheme is invalid')
     return res.status(401).json({ error: 'Unauthorized: No token provided' })
   }
 
@@ -21,6 +18,8 @@ const verifyToken = async (req, res, next) => {
     req.user = decoded
     return next()
   } catch (error) {
+    // Do not log request headers or token contents. Error codes are enough to
+    // diagnose a configuration or expiry issue without exposing credentials.
     console.warn('Firebase token verification failed:', error.code || error.message)
     return res.status(401).json({ error: 'Unauthorized: Invalid token' })
   }
