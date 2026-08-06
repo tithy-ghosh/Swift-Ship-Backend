@@ -1,6 +1,6 @@
 import RiderApplication from '../models/riderApplication.model.js';
 import asyncHandler from '../middleware/asyncHandler.js';
-
+import User from '../models/user.model.js';
 // POST /api/rider-applications
 export const submitRiderApplication = asyncHandler(async (req, res) => {
   const { uid } = req.user; // From verifyToken middleware
