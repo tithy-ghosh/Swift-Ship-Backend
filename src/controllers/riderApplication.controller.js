@@ -26,3 +26,64 @@ export const submitRiderApplication = asyncHandler(async (req, res) => {
 
   res.status(201).json(newApplication);
 });
+
+//  GET /api/rider-applications (Admin only - Get all applications)
+export const getAllRiderApplications = asyncHandler(async (req, res) => {
+  const { status } = req.query; 
+  
+  const query = status ? { status } : {};
+  const applications = await RiderApplication.find(query)
+    .populate('userId', 'name email phone')
+    .sort({ createdAt: -1 });
+    res.status(200).json(applications);
+})
+// PUT /api/rider-applications/:id/approve (Admin only)
+export const approveRiderApplication = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const application = await RiderApplication.findByIdAndUpdate(
+    id,
+    { 
+      status: 'approved',
+      adminNotes: req.body.adminNotes || ''
+    },
+    { new: true }
+  );
+
+   if (!application) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+
+  // Update user's role to 'rider'
+  await User.findOneAndUpdate(
+    { userId: application.userId },
+    { role: 'rider' }
+  );
+   res.status(200).json({ message: 'Application approved', application });
+
+})
+
+//  PUT /api/rider-applications/:id/reject (Admin only)
+export const rejectRiderApplication = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const application = await RiderApplication.findByIdAndUpdate(
+    id,
+    { 
+      status: 'rejected',
+      adminNotes: req.body.reason || ''
+    },
+    { new: true }
+  );
+
+  if (!application) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+
+  res.status(200).json({ message: 'Application rejected', application });
+});
+
+export default {
+  submitRiderApplication,
+  getAllRiderApplications,
+  approveRiderApplication,
+  rejectRiderApplication,
+};
