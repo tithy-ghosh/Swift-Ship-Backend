@@ -16,6 +16,8 @@ router.post('/', verifyToken, asyncHandler(submitRiderApplication));
 router.get('/', verifyToken, verifyAdmin, asyncHandler(getAllRiderApplications))
 router.put('/:id/approve', verifyToken, verifyAdmin, asyncHandler(approveRiderApplication))
 router.put('/:id/reject', verifyToken, verifyAdmin, asyncHandler(rejectRiderApplication))
-router.put('/:id/deactivate', verifyToken, verifyAdmin, asyncHandler(deactivateRiderApplication))
+router.put('/:id/deactivate', verifyToken, verifyAdmin, deactivateRiderApplication); 
+
+
 
 export default router;
