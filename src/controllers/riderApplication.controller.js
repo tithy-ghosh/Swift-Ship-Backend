@@ -81,9 +81,34 @@ export const rejectRiderApplication = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Application rejected', application });
 });
 
+// PUT /api/rider-applications/:id/deactivate (Admin only)
+export const deactivateRiderApplication = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const application = await RiderApplication.findByIdAndUpdate(
+    id,
+    {
+      status: 'deactivated',
+      adminNotes: req.body.reason || ''
+    }, {
+      new: true
+    }
+  );
+  if(!application){
+     return res.status(404).json({ error: 'Application not found' });
+  }
+    // Revert user's role back to 'customer'
+  await User.findOneAndUpdate(
+    { uid: application.userId },
+    { role: 'customer' }
+  );
+    res.status(200).json({ message: 'Rider deactivated', application });
+
+});
+
 export default {
   submitRiderApplication,
   getAllRiderApplications,
   approveRiderApplication,
   rejectRiderApplication,
+  deactivateRiderApplication
 };

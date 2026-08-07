@@ -19,7 +19,7 @@ const riderApplicationSchema = new mongoose.Schema(
     experience: { type: Number, default: 0 }, // Years of experience
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'approved', 'rejected', 'deactivated'],
       default: 'pending', 
     },
     adminNotes: { type: String, default: '' },
