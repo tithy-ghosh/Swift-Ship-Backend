@@ -101,3 +101,40 @@ export const updateProfile = async (req, res) => {
   }
    return res.status(200).json(user)
 }
+ // Admin Only:
+
+/**
+ * GET /api/users
+ * Admin only: get all users sorted by newest first
+ */
+
+export const getAllUsers = async(req, res) => {
+  try{
+    const users = await User.find().sort({ createdAt: -1 });
+    return res.status(200).json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return res.status(500).json({ error: 'Failed to fetch users' });
+  }
+}
+/**
+   * DELETE/api/users
+   * Admin only: Delete a user by their MongoDB_id
+   */
+  export const deleteUser = async(req, res) => {
+    try {
+      const { id } = req.params;
+
+      if(req.user.uid === req.params.uid){
+       
+      }
+      const user = await User.findByIdAndDelete(id);
+      if(!user){
+        return res.status(404).json({ message: 'User not found' });
+      }
+      return res.status(200).json({ message: 'User deleted successfully'});
+    } catch (error) {
+       console.error('Error deleting user:', error);
+    return res.status(500).json({ error: 'Failed to delete user' });
+    }
+  }
