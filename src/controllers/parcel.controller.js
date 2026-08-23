@@ -1,3 +1,4 @@
+import asyncHandler from '../middleware/asyncHandler.js'
 import Parcel from '../models/parcel.model.js'
 import Payment from '../models/payment.model.js'
 import Tracking from '../models/tracking.model.js'
@@ -220,3 +221,9 @@ export const deleteParcel = async (req, res) => {
   ])
   return res.json({ message: 'Parcel deleted successfully' })
 }
+ /**GET /api/parcels - Get all parcels (admin only) */
+
+ export const getAllParcels = asyncHandler(async(req, res) => {
+    const parcels = await Parcel.find().populate('senderId receiverId', 'name email').sort({ createdAt: -1 });
+    res.status(200).json(parcels);
+ })
