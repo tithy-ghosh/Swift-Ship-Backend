@@ -6,6 +6,7 @@ import {
   getPaymentRedirectUrl,
   validatePayment,
 } from '../services/payment.service.js'
+import asyncHandler from '../middleware/asyncHandler.js'
 
 const PAYMENT_METHODS = new Set(['online', 'cod'])
 const CUSTOMER_PAYMENT_FIELDS =
@@ -318,3 +319,32 @@ export const handlePaymentIpn = async (req, res) => {
 
   return res.status(200).send('IPN received')
 }
+/**
+ * GET /api/payment
+ * Admin only: Get all payments with parcel and user info
+ */
+export const getAllPayments = asyncHandler(async (req, res) => {
+  const payments = await Payment.find()
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Get unique parcel IDs to fetch parcel details
+  const parcelIds = payments.map(p => p.parcel);
+  
+  const parcels = await Parcel.find({ _id: { $in: parcelIds } })
+    .select('trackingId senderName receiverName createdBy')
+    .lean();
+
+  // Create a map for quick lookup
+  const parcelMap = new Map(
+    parcels.map(p => [String(p._id), p])
+  );
+
+  // Combine payment data with parcel info
+  const paymentsWithDetails = payments.map(payment => ({
+    ...payment,
+    parcelDetails: parcelMap.get(String(payment.parcel)) || null,
+  }));
+
+  return res.status(200).json(paymentsWithDetails);
+});

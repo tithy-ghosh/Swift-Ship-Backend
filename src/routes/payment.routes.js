@@ -8,9 +8,11 @@ import {
   getMyPaymentHistory,
   initializePayment,
   updatePaymentMethod,
+  getAllPayments, 
 } from '../controllers/payment.controller.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import verifyToken from '../middleware/verifyToken.js'
+import { verifyAdmin } from '../middleware/verifyAdmin.js' 
 
 const router = express.Router()
 
@@ -25,5 +27,8 @@ router.post('/success', asyncHandler(handlePaymentSuccess))
 router.post('/fail', asyncHandler(handlePaymentFailure))
 router.post('/cancel', asyncHandler(handlePaymentCancellation))
 router.post('/ipn', asyncHandler(handlePaymentIpn))
+
+//  Admin-only route 
+router.get('/', verifyToken, verifyAdmin, asyncHandler(getAllPayments))
 
 export default router
