@@ -221,9 +221,43 @@ export const deleteParcel = async (req, res) => {
   ])
   return res.json({ message: 'Parcel deleted successfully' })
 }
- /**GET /api/parcels - Get all parcels (admin only) */
+ /**
+ * GET /api/parcels
+ * Admin only: Get all parcels with payment and tracking info
+ */
+export const getAllParcels = asyncHandler(async (req, res) => {
+  // Get all parcels sorted by newest first
+  const parcels = await Parcel.find()
+    .sort({ createdAt: -1 })
+    .lean();
 
- export const getAllParcels = asyncHandler(async(req, res) => {
-    const parcels = await Parcel.find().populate('senderId receiverId', 'name email').sort({ createdAt: -1 });
-    res.status(200).json(parcels);
- })
+  // Get all parcel IDs to fetch related payments and tracking
+  const parcelIds = parcels.map(({ _id }) => _id);
+
+  // Fetch payments and current tracking status for all parcels
+  const [payments, trackingEvents] = await Promise.all([
+    Payment.find({ parcel: { $in: parcelIds } }).lean(),
+    Tracking.aggregate([
+      { $match: { parcel: { $in: parcelIds } } },
+      { $sort: { eventTime: -1, createdAt: -1 } },
+      { $group: { _id: '$parcel', currentStatus: { $first: '$status' } } },
+    ]),
+  ]);
+
+  // Create maps for quick lookup
+  const paymentByParcel = new Map(
+    payments.map((item) => [String(item.parcel), item])
+  );
+  const statusByParcel = new Map(
+    trackingEvents.map((item) => [String(item._id), item.currentStatus])
+  );
+
+  // Combine parcel data with payment and status info
+  const parcelsWithDetails = parcels.map((parcel) => ({
+    ...parcel,
+    payment: paymentByParcel.get(String(parcel._id)) || null,
+    currentStatus: statusByParcel.get(String(parcel._id)) || null,
+  }));
+
+  return res.status(200).json(parcelsWithDetails);
+});
