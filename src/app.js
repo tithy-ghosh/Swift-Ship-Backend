@@ -9,6 +9,7 @@ import userRoutes from './routes/user.routes.js'
 import uploadRoutes from './routes/upload.routes.js'
 import riderApplicationRoutes from './routes/riderApplication.routes.js'
 import adminRoutes from './routes/admin.routes.js'
+import settingRoutes from './routes/settings.route.js'
 
 export const createApp = () => {
   const app = express()
@@ -37,6 +38,7 @@ export const createApp = () => {
   app.use('/api/upload', uploadRoutes)
   app.use('/api/rider-applications', riderApplicationRoutes)
   app.use('/api/admin', adminRoutes)
+  app.use('/api/settings', settingRoutes);
   app.use(notFoundHandler)
   app.use(errorHandler)
 
