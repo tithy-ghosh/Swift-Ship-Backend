@@ -9,7 +9,7 @@ import userRoutes from './routes/user.routes.js'
 import uploadRoutes from './routes/upload.routes.js'
 import riderApplicationRoutes from './routes/riderApplication.routes.js'
 import adminRoutes from './routes/admin.routes.js'
-import settingRoutes from './routes/settings.route.js'
+import settingRoutes from './routes/setting.route.js'
 
 export const createApp = () => {
   const app = express()
