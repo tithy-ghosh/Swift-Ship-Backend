@@ -1,6 +1,47 @@
+import Setting from '../models/setting.model.js'
+
 const DOCUMENT_TYPE = 'document'
-const EXTRA_WEIGHT_RATE = 20
-const MAX_BASE_WEIGHT_KG = 3
+
+/**
+ * Fallback values used only if no Setting document exists yet (e.g. a fresh
+ * database). Once an admin saves settings, the DB values always win.
+ */
+export const DEFAULT_PRICING = {
+  documentWithinCityRate: 50,
+  documentOutsideCityRate: 80,
+  nonDocumentBaseWithinCityRate: 80,
+  nonDocumentBaseOutsideCityRate: 130,
+  maxBaseWeightKg: 3,
+  extraWeightRatePerKg: 20,
+  outsideCityExtraCharge: 20,
+  minimumCharge: 40,
+}
+
+// Short-lived in-memory cache so every quote/parcel request doesn't hit Mongo.
+// Invalidated immediately whenever an admin saves pricing settings.
+let cachedPricing = null
+let cachedAt = 0
+const CACHE_TTL_MS = 30_000
+
+/**
+ * Resolves the pricing configuration currently in effect, merging saved
+ * overrides on top of the defaults above.
+ */
+export const getActivePricing = async () => {
+  const isCacheFresh = cachedPricing && Date.now() - cachedAt < CACHE_TTL_MS
+  if (isCacheFresh) return cachedPricing
+
+  const settingsDoc = await Setting.findOne().select('pricing').lean()
+  cachedPricing = { ...DEFAULT_PRICING, ...(settingsDoc?.pricing || {}) }
+  cachedAt = Date.now()
+
+  return cachedPricing
+}
+
+/** Call after any write to Setting.pricing so the next quote uses fresh values. */
+export const invalidatePricingCache = () => {
+  cachedPricing = null
+}
 
 /**
  * Calculates the authoritative delivery charge for a parcel.
@@ -14,24 +55,27 @@ const MAX_BASE_WEIGHT_KG = 3
  *   senderServiceCenter: string,
  *   receiverServiceCenter: string
  * }} input
- * @returns {{
+ * @returns {Promise<{
  *   deliveryCost: number,
  *   deliveryZone: string,
  *   costBreakdown: Array<{label: string, amount: number}>
- * }}
+ * }>}
  */
-export const calculateDeliveryCharge = ({
+export const calculateDeliveryCharge = async ({
   type,
   weight,
   senderServiceCenter,
   receiverServiceCenter,
 }) => {
+  const pricing = await getActivePricing()
+
   const parcelWeight = Math.max(Number(weight) || 1, 1)
   const isWithinCity = senderServiceCenter === receiverServiceCenter
   const deliveryZone = isWithinCity ? 'Within City' : 'Outside City/District'
 
   if (type === DOCUMENT_TYPE) {
-    const deliveryCost = isWithinCity ? 50 : 80
+    const rate = isWithinCity ? pricing.documentWithinCityRate : pricing.documentOutsideCityRate
+    const deliveryCost = Math.max(rate, pricing.minimumCharge)
     return {
       deliveryCost,
       deliveryZone,
@@ -39,25 +83,38 @@ export const calculateDeliveryCharge = ({
     }
   }
 
-  const baseCost = isWithinCity ? 80 : 130
+  const baseCost = isWithinCity
+    ? pricing.nonDocumentBaseWithinCityRate
+    : pricing.nonDocumentBaseOutsideCityRate
 
-  if (parcelWeight <= MAX_BASE_WEIGHT_KG) {
+  if (parcelWeight <= pricing.maxBaseWeightKg) {
+    const deliveryCost = Math.max(baseCost, pricing.minimumCharge)
     return {
-      deliveryCost: baseCost,
+      deliveryCost,
       deliveryZone,
       costBreakdown: [
-        { label: `Non-document base charge up to 3 kg (${deliveryZone})`, amount: baseCost },
+        {
+          label: `Non-document base charge up to ${pricing.maxBaseWeightKg} kg (${deliveryZone})`,
+          amount: baseCost,
+        },
       ],
     }
   }
 
-  const extraWeight = Math.ceil(parcelWeight - MAX_BASE_WEIGHT_KG)
-  const extraWeightCost = extraWeight * EXTRA_WEIGHT_RATE
-  const outsideCityCharge = isWithinCity ? 0 : 20
-  const deliveryCost = baseCost + extraWeightCost + outsideCityCharge
+  const extraWeight = Math.ceil(parcelWeight - pricing.maxBaseWeightKg)
+  const extraWeightCost = extraWeight * pricing.extraWeightRatePerKg
+  const outsideCityCharge = isWithinCity ? 0 : pricing.outsideCityExtraCharge
+  const deliveryCost = Math.max(baseCost + extraWeightCost + outsideCityCharge, pricing.minimumCharge)
+
   const costBreakdown = [
-    { label: `Non-document base charge up to 3 kg (${deliveryZone})`, amount: baseCost },
-    { label: `Extra weight charge (${extraWeight} kg x BDT 20)`, amount: extraWeightCost },
+    {
+      label: `Non-document base charge up to ${pricing.maxBaseWeightKg} kg (${deliveryZone})`,
+      amount: baseCost,
+    },
+    {
+      label: `Extra weight charge (${extraWeight} kg x BDT ${pricing.extraWeightRatePerKg})`,
+      amount: extraWeightCost,
+    },
   ]
 
   if (outsideCityCharge) {

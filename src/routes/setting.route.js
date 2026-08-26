@@ -5,6 +5,9 @@ import {
   updatePricingSettings,
   updateSystemSettings,
   getPublicSettings,
+  createZone,
+  updateZone,
+  deleteZone,
 } from '../controllers/setting.controller.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import verifyToken from '../middleware/verifyToken.js';
@@ -20,5 +23,10 @@ router.get('/', verifyToken, verifyAdmin, asyncHandler(getSettings));
 router.put('/', verifyToken, verifyAdmin, asyncHandler(updateSettings));
 router.patch('/pricing', verifyToken, verifyAdmin, asyncHandler(updatePricingSettings));
 router.patch('/system', verifyToken, verifyAdmin, asyncHandler(updateSystemSettings));
+
+// Service zone CRUD (admin only)
+router.post('/zones', verifyToken, verifyAdmin, asyncHandler(createZone));
+router.patch('/zones/:zoneId', verifyToken, verifyAdmin, asyncHandler(updateZone));
+router.delete('/zones/:zoneId', verifyToken, verifyAdmin, asyncHandler(deleteZone));
 
 export default router;

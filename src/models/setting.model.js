@@ -4,25 +4,40 @@ const settingSchema = new mongoose.Schema(
   {
     // Delivery Pricing
     pricing: {
-      baseFare: {
+      documentWithinCityRate: {
         type: Number,
         default: 50,
         min: 0,
       },
-      perKmRate: {
+      documentOutsideCityRate: {
         type: Number,
-        default: 30,
+        default: 80,
         min: 0,
       },
-      documentBaseRate: {
+      nonDocumentBaseWithinCityRate: {
         type: Number,
-        default: 40,
+        default: 80,
         min: 0,
       },
-      outsideCityMultiplier: {
+      nonDocumentBaseOutsideCityRate: {
         type: Number,
-        default: 1.5,
-        min: 1,
+        default: 130,
+        min: 0,
+      },
+      maxBaseWeightKg: {
+        type: Number,
+        default: 3,
+        min: 0,
+      },
+      extraWeightRatePerKg: {
+        type: Number,
+        default: 20,
+        min: 0,
+      },
+      outsideCityExtraCharge: {
+        type: Number,
+        default: 20,
+        min: 0,
       },
       minimumCharge: {
         type: Number,
@@ -34,7 +49,7 @@ const settingSchema = new mongoose.Schema(
     // Service Zones
     serviceZones: [
       {
-        name: { type: String, required: true },
+        name: { type: String, required: true, trim: true },
         districts: [String],
         isActive: { type: Boolean, default: true },
       },

@@ -22,7 +22,7 @@ export const createQuote = async (req, res) => {
     })
   }
 
-  const pricing = calculateDeliveryCharge({
+  const pricing = await calculateDeliveryCharge({
     type,
     weight,
     senderServiceCenter,
@@ -85,7 +85,7 @@ export const createParcel = async (req, res) => {
     return res.status(400).json({ error: 'paymentMethod must be cod or online' })
   }
 
-  const pricing = calculateDeliveryCharge({
+  const pricing = await calculateDeliveryCharge({
     type,
     weight,
     senderServiceCenter,
