@@ -13,7 +13,7 @@ export const getTrackingHistory = async (req, res) => {
   }
 
   const parcel = await Parcel.findOne({ trackingId }).select(
-    'trackingId deliveryZone senderServiceCenter receiverServiceCenter createdAt'
+    'trackingId deliveryZone senderServiceCenter receiverServiceCenter createdAt assignedRider'
   )
   if (!parcel) {
     return res.status(404).json({ error: 'Parcel not found' })

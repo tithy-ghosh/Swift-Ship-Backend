@@ -9,6 +9,8 @@ import {
   initializePayment,
   updatePaymentMethod,
   getAllPayments, 
+  adminUpdatePaymentStatus,
+  adminRefundPayment,
 } from '../controllers/payment.controller.js'
 import asyncHandler from '../middleware/asyncHandler.js'
 import verifyToken from '../middleware/verifyToken.js'
@@ -30,5 +32,7 @@ router.post('/ipn', asyncHandler(handlePaymentIpn))
 
 //  Admin-only route 
 router.get('/', verifyToken, verifyAdmin, asyncHandler(getAllPayments))
+router.patch('/:id/status', verifyToken, verifyAdmin, asyncHandler(adminUpdatePaymentStatus))
+router.post('/:id/refund', verifyToken, verifyAdmin, asyncHandler(adminRefundPayment))
 
 export default router

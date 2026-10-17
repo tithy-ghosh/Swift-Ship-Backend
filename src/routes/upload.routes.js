@@ -65,4 +65,41 @@ router.post('/profile-picture', verifyToken, upload.single('image'), asyncHandle
   }
 }));
 
+// POST /api/upload/document - rider document uploads (NID, license, bike registration)
+router.post('/document', verifyToken, upload.single('image'), asyncHandler(async (req, res) => {
+  const { documentType } = req.body;
+
+  const validTypes = ['nid', 'license', 'bikeRegistration'];
+  if (!documentType || !validTypes.includes(documentType)) {
+    return res.status(400).json({ error: 'Invalid document type. Must be nid, license, or bikeRegistration.' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No document file provided' });
+  }
+
+  try {
+    const b64 = Buffer.from(req.file.buffer).toString('base64');
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: `swift-ship/documents/${documentType}`,
+      public_id: `${req.user.uid}_${documentType}`,
+      transformation: [
+        { width: 1200, height: 1200, crop: 'limit' },
+        { quality: 'auto' },
+      ],
+    });
+
+    res.status(200).json({
+      url: result.secure_url,
+      public_id: result.public_id,
+      documentType,
+    });
+  } catch (error) {
+    console.error('❌ Cloudinary upload error:', error.message);
+    res.status(500).json({ error: 'Failed to upload document to Cloudinary' });
+  }
+}));
+
 export default router;

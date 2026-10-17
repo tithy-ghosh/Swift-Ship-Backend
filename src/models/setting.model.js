@@ -46,6 +46,58 @@ const settingSchema = new mongoose.Schema(
       },
     },
 
+    // Rider Compensation
+    //
+    // A rider's pay is the 40-60 split of the delivery's fare: they keep
+    // `riderSharePercent` of the customer's cost, the company keeps the rest.
+    // `baseFare`/`perKmRate`/`minFare` price a cross-district LEG's own pool
+    // (a whole-route delivery is priced at the customer's cost instead).
+    //
+    // A rider's actual pay for a delivery is snapshotted onto the parcel at
+    // accept time, so editing these never rewrites history.
+    riderPayout: {
+      /** The rider's percentage of each delivery's fare. */
+      riderSharePercent: {
+        type: Number,
+        default: 40,
+        min: 0,
+        max: 100,
+      },
+      /** The company's percentage. Stored explicitly so both halves are visible. */
+      companySharePercent: {
+        type: Number,
+        default: 60,
+        min: 0,
+        max: 100,
+      },
+      /** A leg's pool base, before any distance component. */
+      baseFare: {
+        type: Number,
+        default: 40,
+        min: 0,
+      },
+      /** Added per km of service-centre to service-centre distance. */
+      perKmRate: {
+        type: Number,
+        default: 12,
+        min: 0,
+      },
+      /** Floor on the rider's fare share, so short hops stay worth accepting. */
+      minFare: {
+        type: Number,
+        default: 40,
+        min: 0,
+      },
+      bonus: {
+        /** Grant a bonus once the daily target is reached. */
+        enabled: { type: Boolean, default: true },
+        /** Deliveries per day that unlock the bonus. */
+        dailyTarget: { type: Number, default: 6, min: 0 },
+        /** Bonus amount in BDT. Paid to the rider in full, on top of the split. */
+        amount: { type: Number, default: 100, min: 0 },
+      },
+    },
+
     // Service Zones
     serviceZones: [
       {

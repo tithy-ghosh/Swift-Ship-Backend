@@ -1,6 +1,7 @@
 import Setting from '../models/setting.model.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import { invalidatePricingCache } from '../services/delivery-pricing.service.js';
+import { invalidateRiderRateCardCache } from '../services/rider-payout.service.js';
 
 /** Finds the single Setting document, creating it with defaults if missing. */
 const findOrCreateSettings = async () => {
@@ -50,6 +51,9 @@ export const updateSettings = asyncHandler(async (req, res) => {
   }
 
   invalidatePricingCache();
+  // The same request can carry a new rider rate card (payout base, per-km
+  // rate, or the 40-60 split), so its cache is cleared in the same breath.
+  invalidateRiderRateCardCache();
 
   return res.status(200).json({
     message: 'Settings updated successfully',
@@ -153,6 +157,44 @@ export const updatePricingSettings = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     message: 'Pricing settings updated successfully',
+    settings,
+  });
+});
+
+/**
+ * PATCH /api/settings/rider-payout
+ * Update rider payout settings only (admin only)
+ */
+export const updateRiderPayoutSettings = asyncHandler(async (req, res) => {
+  const riderPayoutData = req.body;
+
+  const settings = await findOrCreateSettings();
+  const current = settings.toObject().riderPayout || {};
+
+  const next = {
+    ...current,
+    ...riderPayoutData,
+    // Bonus is a nested group; merging it field-by-field keeps a partial call
+    // from silently dropping the keys it did not mention.
+    bonus: { ...(current.bonus || {}), ...(riderPayoutData.bonus || {}) },
+  };
+
+  // Whichever half of the split the caller sends, the other half is written
+  // alongside it, so the stored document can never contradict itself.
+  if (riderPayoutData.riderSharePercent !== undefined) {
+    next.companySharePercent = 100 - Number(riderPayoutData.riderSharePercent);
+  } else if (riderPayoutData.companySharePercent !== undefined) {
+    next.riderSharePercent = 100 - Number(riderPayoutData.companySharePercent);
+  }
+
+  settings.riderPayout = next;
+  await settings.save();
+
+  // Riders see the new split on their next job fetch, not after the cache TTL.
+  invalidateRiderRateCardCache();
+
+  return res.status(200).json({
+    message: 'Rider payout settings updated successfully',
     settings,
   });
 });

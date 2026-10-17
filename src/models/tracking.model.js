@@ -6,6 +6,7 @@ export const TRACKING_STATUSES = [
   'picked-up',
   'in-transit',
   'out-for-delivery',
+  'at-godown',
   'delivered',
   'cancelled',
 ]
@@ -38,5 +39,8 @@ const trackingSchema = new mongoose.Schema(
 )
 
 trackingSchema.index({ trackingId: 1, eventTime: -1, createdAt: -1 })
+// Analytics windows count delivered/cancelled events by status over a date
+// range, so the query is (status, eventTime) rather than tracking id.
+trackingSchema.index({ status: 1, eventTime: -1 })
 
 export default mongoose.model('Tracking', trackingSchema)

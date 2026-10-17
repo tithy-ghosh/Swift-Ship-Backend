@@ -1,4 +1,5 @@
 import User from '../models/user.model.js'
+import { logAdminAction } from '../services/activity-log.service.js'
 
 /**
  * POST /api/users
@@ -141,6 +142,19 @@ export const deleteUser = async (req, res) => {
 
     // 4. Proceed with deletion
     await User.findByIdAndDelete(id);
+
+    // The activity log is the audit trail of who did what, so it is recorded
+    // only after the change has succeeded.
+    await logAdminAction({
+      actorUid: adminUid,
+      actorName: req.user.name || req.user.email || adminUid,
+      action: 'delete_user',
+      targetType: 'user',
+      targetId: userToDelete._id,
+      targetName: userToDelete.name,
+      details: { deletedRole: userToDelete.role },
+    });
+
     return res.status(200).json({ message: 'User deleted successfully' });
     
   } catch (error) {
@@ -159,7 +173,7 @@ export const updateUserRole = async (req, res) => {
     const { role } = req.body;
     const adminUid = req.user.uid; // The UID of the admin making the request
 
-    const validRoles = ['customer', 'rider', 'admin'];
+    const validRoles = ['customer', 'rider', 'merchant', 'admin'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
@@ -184,8 +198,21 @@ export const updateUserRole = async (req, res) => {
     }
 
     // 4. Update the role
+    const previousRole = userToUpdate.role
     userToUpdate.role = role;
     await userToUpdate.save();
+
+    // The activity log is the audit trail of who did what, so it is recorded
+    // only after the change has succeeded.
+    await logAdminAction({
+      actorUid: adminUid,
+      actorName: req.user.name || req.user.email || adminUid,
+      action: 'update_user_role',
+      targetType: 'user',
+      targetId: userToUpdate._id,
+      targetName: userToUpdate.name,
+      details: { from: previousRole, to: role },
+    });
 
     return res.status(200).json({ 
       message: 'User role updated successfully',

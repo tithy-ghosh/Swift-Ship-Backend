@@ -1,12 +1,17 @@
+import mongoose from 'mongoose'
 import asyncHandler from '../middleware/asyncHandler.js'
 import Parcel from '../models/parcel.model.js'
 import Payment from '../models/payment.model.js'
-import Tracking from '../models/tracking.model.js'
+import Tracking, { TRACKING_STATUSES } from '../models/tracking.model.js'
+import RiderApplication from '../models/riderApplication.model.js'
 import { calculateDeliveryCharge } from '../services/delivery-pricing.service.js'
+import { getLatestEvent } from '../services/rider-delivery.service.js'
 import { generateTrackingId } from '../utils/tracking.js'
+import { logAdminAction } from '../services/activity-log.service.js'
 
 const PARCEL_TYPES = new Set(['document', 'non-document'])
 const PAYMENT_METHODS = new Set(['cod', 'online'])
+const TRACKING_STATUS_SET = new Set(TRACKING_STATUSES)
 
 /**
  * POST /api/parcels/quote
@@ -92,6 +97,11 @@ export const createParcel = async (req, res) => {
     receiverServiceCenter,
   })
 
+  // The routing model is decided once, here, from the two service centres:
+  // same district stays a single-rider route (`leg` null), cross-district
+  // starts on leg 1 (rider collects and parks it at the sending godown).
+  const crossDistrict = senderServiceCenter !== receiverServiceCenter
+
   const parcel = await Parcel.create({
     trackingId,
     type,
@@ -109,6 +119,7 @@ export const createParcel = async (req, res) => {
     receiverServiceCenter,
     receiverAddress,
     deliveryInstruction,
+    leg: crossDistrict ? 'pickup' : null,
     ...pricing,
     createdBy: {
       uid: req.user.uid,
@@ -261,3 +272,212 @@ export const getAllParcels = asyncHandler(async (req, res) => {
 
   return res.status(200).json(parcelsWithDetails);
 });
+
+/**
+ * PATCH /api/parcels/:id/status
+ * Admin only: force a parcel's tracking status.
+ *
+ * Tracking is the single source of truth for a parcel's status, so an override
+ * appends a new event rather than writing a field that does not exist. This is
+ * a support lever for a stuck or mis-tracked parcel, not a normal transition,
+ * so it deliberately bypasses the rider state machine.
+ */
+export const adminUpdateParcelStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params
+  const { status, message = '' } = req.body
+
+  if (!TRACKING_STATUS_SET.has(status)) {
+    return res.status(400).json({
+      error: `status must be one of: ${TRACKING_STATUSES.join(', ')}`,
+    })
+  }
+
+  const parcel = await Parcel.findById(id)
+  if (!parcel) {
+    return res.status(404).json({ error: 'Parcel not found' })
+  }
+
+  await Tracking.create({
+    parcel: parcel._id,
+    trackingId: parcel.trackingId,
+    status,
+    message: message || `Status set to "${status}" by admin`,
+    eventTime: new Date(),
+    updatedBy: { uid: req.user.uid, name: req.adminUser?.name || 'Swift Ship' },
+  })
+
+  // The activity log is the audit trail of who did what, so it is recorded
+  // only after the change has succeeded.
+  await logAdminAction({
+    actorUid: req.user.uid,
+    actorName: req.user.name || req.user.email,
+    action: 'update_parcel_status',
+    targetType: 'parcel',
+    targetId: parcel._id,
+    targetName: parcel.trackingId,
+    details: { status, message },
+  })
+
+  return res.status(200).json({ ...parcel.toObject(), currentStatus: status })
+})
+
+/**
+ * PATCH /api/parcels/:id/cancel
+ * Admin only: stop a parcel and record why.
+ *
+ * Mirrors the rider's cancellation: the assigned rider is released back into
+ * the pool (a cancelled parcel must become claimable again) and the reason is
+ * written into the tracking log, which is the only audit trail parcels have.
+ */
+export const adminCancelParcel = asyncHandler(async (req, res) => {
+  const { id } = req.params
+  const reason = String(req.body.reason || '').trim()
+
+  if (!reason) {
+    return res.status(400).json({ error: 'A cancellation reason is required' })
+  }
+
+  const parcel = await Parcel.findById(id)
+  if (!parcel) {
+    return res.status(404).json({ error: 'Parcel not found' })
+  }
+
+  if (parcel.assignedRider?.uid) {
+    await RiderApplication.updateOne(
+      { userId: parcel.assignedRider.uid, currentParcel: parcel._id },
+      { $set: { currentParcel: null } }
+    )
+    await Parcel.updateOne(
+      { _id: parcel._id },
+      { $set: { assignedRider: { uid: null, name: '' }, assignedAt: null } }
+    )
+  }
+
+  const cancelledAt = new Date()
+
+  // Persist the reason on the parcel itself. The activity log already records
+  // it, but that trail is admin-scoped and unqueryable for a report; this is
+  // what lets analytics group cancellations by reason.
+  await Parcel.updateOne(
+    { _id: parcel._id },
+    {
+      $set: {
+        cancellation: {
+          reason,
+          cancelledAt,
+          cancelledBy: {
+            uid: req.user.uid,
+            name: req.adminUser?.name || req.user.name || req.user.email || 'Swift Ship',
+            role: 'admin',
+          },
+        },
+      },
+    }
+  )
+
+  await Tracking.create({
+    parcel: parcel._id,
+    trackingId: parcel.trackingId,
+    status: 'cancelled',
+    message: `Cancelled by admin: ${reason}`,
+    eventTime: cancelledAt,
+    updatedBy: { uid: req.user.uid, name: req.adminUser?.name || 'Swift Ship' },
+  })
+
+  // The activity log is the audit trail of who did what, so it is recorded
+  // only after the change has succeeded.
+  await logAdminAction({
+    actorUid: req.user.uid,
+    actorName: req.user.name || req.user.email,
+    action: 'cancel_parcel',
+    targetType: 'parcel',
+    targetId: parcel._id,
+    targetName: parcel.trackingId,
+    details: { reason },
+  })
+
+  const updated = await Parcel.findById(parcel._id)
+  return res.status(200).json({ ...updated.toObject(), currentStatus: 'cancelled' })
+})
+
+/**
+ * PATCH /api/parcels/:id/reassign
+ * Admin only: hand a parcel's active leg to another approved rider.
+ *
+ * `riderId` is accepted as either the rider's Firebase uid or their
+ * application id, because the two admin screens that feed this endpoint carry
+ * different identifiers. The rider's uid is what `assignedRider` stores.
+ */
+export const adminReassignParcel = asyncHandler(async (req, res) => {
+  const { id } = req.params
+  const { riderId } = req.body
+
+  if (!riderId) {
+    return res.status(400).json({ error: 'riderId is required' })
+  }
+
+  const parcel = await Parcel.findById(id)
+  if (!parcel) {
+    return res.status(404).json({ error: 'Parcel not found' })
+  }
+
+  const rider = await RiderApplication.findOne({
+    status: 'approved',
+    $or: [
+      { userId: String(riderId) },
+      ...(mongoose.isValidObjectId(riderId) ? [{ _id: riderId }] : []),
+    ],
+  })
+
+  if (!rider) {
+    return res.status(404).json({ error: 'Approved rider not found' })
+  }
+
+  const previousUid = parcel.assignedRider?.uid || null
+  if (previousUid && previousUid !== rider.userId) {
+    await RiderApplication.updateOne(
+      { userId: previousUid, currentParcel: parcel._id },
+      { $set: { currentParcel: null } }
+    )
+  }
+
+  await Parcel.updateOne(
+    { _id: parcel._id },
+    {
+      $set: {
+        assignedRider: { uid: rider.userId, name: rider.name },
+        assignedAt: new Date(),
+        acceptedAt: parcel.acceptedAt || new Date(),
+      },
+    }
+  )
+  await RiderApplication.updateOne(
+    { userId: rider.userId },
+    { $set: { currentParcel: parcel._id } }
+  )
+
+  await Tracking.create({
+    parcel: parcel._id,
+    trackingId: parcel.trackingId,
+    status: 'assigned',
+    message: `Reassigned to ${rider.name} by admin`,
+    eventTime: new Date(),
+    updatedBy: { uid: req.user.uid, name: req.adminUser?.name || 'Swift Ship' },
+  })
+
+  // The activity log is the audit trail of who did what, so it is recorded
+  // only after the change has succeeded.
+  await logAdminAction({
+    actorUid: req.user.uid,
+    actorName: req.user.name || req.user.email,
+    action: 'reassign_parcel',
+    targetType: 'parcel',
+    targetId: parcel._id,
+    targetName: parcel.trackingId,
+    details: { riderId },
+  })
+
+  const updated = await Parcel.findById(parcel._id)
+  const { status: currentStatus } = await getLatestEvent(parcel._id)
+  return res.status(200).json({ ...updated.toObject(), currentStatus })
+})

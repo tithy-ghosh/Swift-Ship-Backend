@@ -8,6 +8,9 @@ import trackingRoutes from './routes/tracking.routes.js'
 import userRoutes from './routes/user.routes.js'
 import uploadRoutes from './routes/upload.routes.js'
 import riderApplicationRoutes from './routes/riderApplication.routes.js'
+import riderRoutes from './routes/rider.routes.js'
+import merchantApplicationRoutes from './routes/merchantApplication.routes.js'
+import merchantRoutes from './routes/merchant.routes.js'
 import adminRoutes from './routes/admin.routes.js'
 import settingRoutes from './routes/setting.route.js'
 
@@ -21,6 +24,10 @@ export const createApp = () => {
     origin: env.allowedFrontendOrigin,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    // The admin CSV export names its file in Content-Disposition; without this
+    // the browser hides the header from JS and every download lands as
+    // "download.csv" instead of e.g. "swift-ship-users-2026-10-17.csv".
+    exposedHeaders: ['Content-Disposition'],
     credentials: true
   }))
   
@@ -37,6 +44,9 @@ export const createApp = () => {
   app.use('/api/tracking', trackingRoutes)
   app.use('/api/upload', uploadRoutes)
   app.use('/api/rider-applications', riderApplicationRoutes)
+  app.use('/api/rider', riderRoutes)
+  app.use('/api/merchant-applications', merchantApplicationRoutes)
+  app.use('/api/merchant', merchantRoutes)
   app.use('/api/admin', adminRoutes)
   app.use('/api/settings', settingRoutes);
   app.use(notFoundHandler)

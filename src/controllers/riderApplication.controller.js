@@ -1,6 +1,7 @@
 import RiderApplication from '../models/riderApplication.model.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import User from '../models/user.model.js';
+import { logAdminAction } from '../services/activity-log.service.js';
 // POST /api/rider-applications
 export const submitRiderApplication = asyncHandler(async (req, res) => {
   const { uid } = req.user; // From verifyToken middleware
@@ -55,9 +56,26 @@ export const approveRiderApplication = asyncHandler(async (req, res) => {
 
   // Update user's role to 'rider'
   await User.findOneAndUpdate(
-    { userId: application.userId },
+    { uid: application.userId },
     { role: 'rider' }
   );
+
+  // The activity log is the audit trail of who did what, so it is recorded
+  // only after the change has succeeded - a failed write must not fail the
+  // request that already completed.
+  await logAdminAction({
+    actorUid: req.user.uid,
+    actorName: req.user.name || req.user.email,
+    action: 'approve_rider',
+    targetType: 'rider',
+    targetId: application.userId,
+    targetName: application.name,
+    details: {
+      applicationId: String(application._id),
+      adminNotes: req.body.adminNotes || '',
+    },
+  });
+
    res.status(200).json({ message: 'Application approved', application });
 
 })
@@ -78,6 +96,19 @@ export const rejectRiderApplication = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Application not found' });
   }
 
+  await logAdminAction({
+    actorUid: req.user.uid,
+    actorName: req.user.name || req.user.email,
+    action: 'reject_rider',
+    targetType: 'rider',
+    targetId: application.userId,
+    targetName: application.name,
+    details: {
+      applicationId: String(application._id),
+      reason: req.body.reason || '',
+    },
+  });
+
   res.status(200).json({ message: 'Application rejected', application });
 });
 
@@ -96,7 +127,22 @@ export const deactivateRiderApplication = asyncHandler(async (req, res) => {
   if(!application){
      return res.status(404).json({ error: 'Application not found' });
   }
-    // Revert user's role back to 'customer'
+     // The activity log is the audit trail of who did what, so it is recorded
+     // only after the change has succeeded.
+     await logAdminAction({
+       actorUid: req.user.uid,
+       actorName: req.user.name || req.user.email,
+       action: 'deactivate_rider',
+       targetType: 'rider',
+       targetId: application.userId,
+       targetName: application.name,
+       details: {
+         applicationId: String(application._id),
+         reason: req.body.reason || '',
+       },
+     });
+
+     // Revert user's role back to 'customer'
   await User.findOneAndUpdate(
     { uid: application.userId },
     { role: 'customer' }

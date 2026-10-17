@@ -1,0 +1,386 @@
+[
+    {
+        "region":  "Khulna",
+        "district":  "Bagerhat",
+        "latitude":  22.6516,
+        "longitude":  89.7926
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Bandarban",
+        "latitude":  22.1958,
+        "longitude":  92.2186
+    },
+    {
+        "region":  "Barisal",
+        "district":  "Barguna",
+        "latitude":  22.1667,
+        "longitude":  90.1167
+    },
+    {
+        "region":  "Barisal",
+        "district":  "Barisal",
+        "latitude":  22.7,
+        "longitude":  90.3667
+    },
+    {
+        "region":  "Barisal",
+        "district":  "Bhola",
+        "latitude":  22.685,
+        "longitude":  90.6311
+    },
+    {
+        "region":  "Rajshahi",
+        "district":  "Bogura",
+        "latitude":  24.85,
+        "longitude":  89.37
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Brahmanbaria",
+        "latitude":  23.9571,
+        "longitude":  91.1116
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Chandpur",
+        "latitude":  23.2333,
+        "longitude":  90.85
+    },
+    {
+        "region":  "Rajshahi",
+        "district":  "Chapainawabganj",
+        "latitude":  24.5962,
+        "longitude":  88.27
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Chattogram",
+        "latitude":  22.3569,
+        "longitude":  91.8123
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Chuadanga",
+        "latitude":  23.64,
+        "longitude":  88.85
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Cox\u0027s Bazar",
+        "latitude":  21.4272,
+        "longitude":  92.0165
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Cumilla",
+        "latitude":  23.4573,
+        "longitude":  91.1809
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Dhaka",
+        "latitude":  23.8103,
+        "longitude":  90.4125
+    },
+    {
+        "region":  "Rangpur",
+        "district":  "Dinajpur",
+        "latitude":  25.6275,
+        "longitude":  88.6414
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Faridpur",
+        "latitude":  23.6,
+        "longitude":  89.8333
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Feni",
+        "latitude":  23.0167,
+        "longitude":  91.4
+    },
+    {
+        "region":  "Rangpur",
+        "district":  "Gaibandha",
+        "latitude":  25.3288,
+        "longitude":  89.5418
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Gazipur",
+        "latitude":  23.9999,
+        "longitude":  90.4203
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Gopalganj",
+        "latitude":  23.0052,
+        "longitude":  89.8266
+    },
+    {
+        "region":  "Sylhet",
+        "district":  "Habiganj",
+        "latitude":  24.3745,
+        "longitude":  91.4026
+    },
+    {
+        "region":  "Mymensingh",
+        "district":  "Jamalpur",
+        "latitude":  24.9167,
+        "longitude":  89.9333
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Jessore",
+        "latitude":  23.17,
+        "longitude":  89.2167
+    },
+    {
+        "region":  "Barisal",
+        "district":  "Jhalokati",
+        "latitude":  22.6417,
+        "longitude":  90.2167
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Jhenaidah",
+        "latitude":  23.5333,
+        "longitude":  89.1833
+    },
+    {
+        "region":  "Rajshahi",
+        "district":  "Joypurhat",
+        "latitude":  25.0953,
+        "longitude":  89.0412
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Khagrachari",
+        "latitude":  23.1,
+        "longitude":  91.9667
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Khulna",
+        "latitude":  22.8456,
+        "longitude":  89.5672
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Kishoreganj",
+        "latitude":  24.426,
+        "longitude":  90.7829
+    },
+    {
+        "region":  "Rangpur",
+        "district":  "Kurigram",
+        "latitude":  25.8054,
+        "longitude":  89.65
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Kushtia",
+        "latitude":  23.9013,
+        "longitude":  89.122
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Lakshmipur",
+        "latitude":  22.9444,
+        "longitude":  90.8415
+    },
+    {
+        "region":  "Rangpur",
+        "district":  "Lalmonirhat",
+        "latitude":  25.9167,
+        "longitude":  89.1662
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Madaripur",
+        "latitude":  23.17,
+        "longitude":  90.2
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Magura",
+        "latitude":  23.4853,
+        "longitude":  89.4194
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Manikganj",
+        "latitude":  23.8617,
+        "longitude":  89.9767
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Meherpur",
+        "latitude":  23.7623,
+        "longitude":  88.6318
+    },
+    {
+        "region":  "Sylhet",
+        "district":  "Moulvibazar",
+        "latitude":  24.4826,
+        "longitude":  91.7832
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Munshiganj",
+        "latitude":  23.55,
+        "longitude":  90.5305
+    },
+    {
+        "region":  "Mymensingh",
+        "district":  "Mymensingh",
+        "latitude":  24.7539,
+        "longitude":  90.3987
+    },
+    {
+        "region":  "Rajshahi",
+        "district":  "Naogaon",
+        "latitude":  24.8236,
+        "longitude":  88.93
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Narail",
+        "latitude":  23.1667,
+        "longitude":  89.5
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Narayanganj",
+        "latitude":  23.62,
+        "longitude":  90.5
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Narsingdi",
+        "latitude":  23.9226,
+        "longitude":  90.7156
+    },
+    {
+        "region":  "Rajshahi",
+        "district":  "Natore",
+        "latitude":  24.4167,
+        "longitude":  89
+    },
+    {
+        "region":  "Mymensingh",
+        "district":  "Netrokona",
+        "latitude":  24.8833,
+        "longitude":  90.7333
+    },
+    {
+        "region":  "Rangpur",
+        "district":  "Nilphamari",
+        "latitude":  25.931,
+        "longitude":  88.856
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Noakhali",
+        "latitude":  22.8245,
+        "longitude":  91.0995
+    },
+    {
+        "region":  "Rajshahi",
+        "district":  "Pabna",
+        "latitude":  24.0037,
+        "longitude":  89.2331
+    },
+    {
+        "region":  "Rangpur",
+        "district":  "Panchagarh",
+        "latitude":  26.3411,
+        "longitude":  88.5658
+    },
+    {
+        "region":  "Barisal",
+        "district":  "Patuakhali",
+        "latitude":  22.35,
+        "longitude":  90.3333
+    },
+    {
+        "region":  "Barisal",
+        "district":  "Pirojpur",
+        "latitude":  22.5833,
+        "longitude":  89.975
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Rajbari",
+        "latitude":  23.7576,
+        "longitude":  89.65
+    },
+    {
+        "region":  "Rajshahi",
+        "district":  "Rajshahi",
+        "latitude":  24.3745,
+        "longitude":  88.6087
+    },
+    {
+        "region":  "Chattogram",
+        "district":  "Rangamati",
+        "latitude":  22.65,
+        "longitude":  92.2
+    },
+    {
+        "region":  "Rangpur",
+        "district":  "Rangpur",
+        "latitude":  25.746,
+        "longitude":  89.2752
+    },
+    {
+        "region":  "Khulna",
+        "district":  "Satkhira",
+        "latitude":  22.7085,
+        "longitude":  89.0809
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Shariatpur",
+        "latitude":  23.22,
+        "longitude":  90.4308
+    },
+    {
+        "region":  "Mymensingh",
+        "district":  "Sherpur",
+        "latitude":  25.0333,
+        "longitude":  90.0333
+    },
+    {
+        "region":  "Rajshahi",
+        "district":  "Sirajganj",
+        "latitude":  24.45,
+        "longitude":  89.7167
+    },
+    {
+        "region":  "Sylhet",
+        "district":  "Sunamganj",
+        "latitude":  25.0658,
+        "longitude":  91.395
+    },
+    {
+        "region":  "Sylhet",
+        "district":  "Sylhet",
+        "latitude":  24.8949,
+        "longitude":  91.8662
+    },
+    {
+        "region":  "Dhaka",
+        "district":  "Tangail",
+        "latitude":  24.25,
+        "longitude":  89.92
+    },
+    {
+        "region":  "Rangpur",
+        "district":  "Thakurgaon",
+        "latitude":  26.0333,
+        "longitude":  88.466
+    }
+]

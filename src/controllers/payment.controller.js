@@ -7,6 +7,7 @@ import {
   validatePayment,
 } from '../services/payment.service.js'
 import asyncHandler from '../middleware/asyncHandler.js'
+import { logAdminAction } from '../services/activity-log.service.js'
 
 const PAYMENT_METHODS = new Set(['online', 'cod'])
 const CUSTOMER_PAYMENT_FIELDS =
@@ -100,6 +101,9 @@ export const getMyPaymentHistory = async (req, res) => {
     Number.isFinite(requestedLimit) && requestedLimit > 0
       ? Math.min(requestedLimit, 50)
       : 20
+  // Optional narrowing. The rows *and* the summary both honour it, so a
+  // merchant's "prepaid bookings" view never counts COD money in its totals.
+  const method = ['online', 'cod'].includes(req.query.method) ? req.query.method : ''
 
   const ownedParcelIds = await Parcel.find({ 'createdBy.uid': req.user.uid }).distinct('_id')
   if (!ownedParcelIds.length) {
@@ -111,6 +115,7 @@ export const getMyPaymentHistory = async (req, res) => {
   }
 
   const filter = { parcel: { $in: ownedParcelIds } }
+  if (method) filter.method = method
   const [payments, total, summaryRows] = await Promise.all([
     Payment.find(filter)
       .select(CUSTOMER_PAYMENT_FIELDS)
@@ -348,3 +353,91 @@ export const getAllPayments = asyncHandler(async (req, res) => {
 
   return res.status(200).json(paymentsWithDetails);
 });
+
+const ADMIN_PAYMENT_STATUSES = new Set(['pending', 'paid', 'failed', 'cancelled', 'refunded'])
+
+/**
+ * PATCH /api/payment/:id/status
+ * Admin only: force a transaction's status (e.g. settle a COD payment by hand).
+ *
+ * This is a reconciliation lever for money the gateway never confirmed, so it
+ * writes the same fields a real settlement would - `paidAt` and `paidAmount` -
+ * rather than flipping the status alone and leaving the row half-settled.
+ */
+export const adminUpdatePaymentStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params
+  const { status } = req.body
+
+  if (!ADMIN_PAYMENT_STATUSES.has(status)) {
+    return res.status(400).json({
+      error: `status must be one of: ${[...ADMIN_PAYMENT_STATUSES].join(', ')}`,
+    })
+  }
+
+  const payment = await Payment.findById(id)
+  if (!payment) {
+    return res.status(404).json({ error: 'Payment not found' })
+  }
+
+  payment.status = status
+  if (status === 'paid') {
+    payment.paidAt = payment.paidAt || new Date()
+    if (payment.paidAmount == null) payment.paidAmount = payment.amount
+  }
+
+  await payment.save()
+
+  // The activity log is the audit trail of who did what, so it is recorded
+  // only after the change has succeeded.
+  await logAdminAction({
+    actorUid: req.user.uid,
+    actorName: req.user.name || req.user.email,
+    action: 'update_payment_status',
+    targetType: 'payment',
+    targetId: payment._id,
+    targetName: payment.trackingId,
+    details: { status },
+  })
+
+  return res.status(200).json(payment)
+})
+
+/**
+ * POST /api/payment/:id/refund
+ * Admin only: mark a settled transaction as refunded.
+ *
+ * A record, not a transfer: the actual money movement happens at the gateway,
+ * outside this system. Only a paid payment can be refunded, and the reason is
+ * kept on the row so a later auditor can see why the money went back.
+ */
+export const adminRefundPayment = asyncHandler(async (req, res) => {
+  const { id } = req.params
+  const reason = String(req.body.reason || '').trim()
+
+  const payment = await Payment.findById(id)
+  if (!payment) {
+    return res.status(404).json({ error: 'Payment not found' })
+  }
+  if (payment.status !== 'paid') {
+    return res.status(409).json({ error: 'Only a paid payment can be refunded.' })
+  }
+
+  payment.status = 'refunded'
+  payment.refundedAt = new Date()
+  payment.refundReason = reason
+  await payment.save()
+
+  // The activity log is the audit trail of who did what, so it is recorded
+  // only after the change has succeeded.
+  await logAdminAction({
+    actorUid: req.user.uid,
+    actorName: req.user.name || req.user.email,
+    action: 'refund_payment',
+    targetType: 'payment',
+    targetId: payment._id,
+    targetName: payment.trackingId,
+    details: { reason },
+  })
+
+  return res.status(200).json(payment)
+})

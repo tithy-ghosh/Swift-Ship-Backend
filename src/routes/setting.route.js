@@ -3,6 +3,7 @@ import {
   getSettings,
   updateSettings,
   updatePricingSettings,
+  updateRiderPayoutSettings,
   updateSystemSettings,
   getPublicSettings,
   createZone,
@@ -22,6 +23,7 @@ router.get('/public', asyncHandler(getPublicSettings));
 router.get('/', verifyToken, verifyAdmin, asyncHandler(getSettings));
 router.put('/', verifyToken, verifyAdmin, asyncHandler(updateSettings));
 router.patch('/pricing', verifyToken, verifyAdmin, asyncHandler(updatePricingSettings));
+router.patch('/rider-payout', verifyToken, verifyAdmin, asyncHandler(updateRiderPayoutSettings));
 router.patch('/system', verifyToken, verifyAdmin, asyncHandler(updateSystemSettings));
 
 // Service zone CRUD (admin only)
