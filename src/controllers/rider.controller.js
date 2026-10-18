@@ -25,7 +25,8 @@ import {
   appendTrackingEvent,
 } from '../services/rider-delivery.service.js'
 import { calculateRiderPayout, getRiderRateCard } from '../services/rider-payout.service.js'
-import { distanceBetweenDistricts, districtCoords } from '../utils/districts.js'
+import { buildAssignmentFields, legDistanceKm } from '../services/rider-assignment.service.js'
+import { districtCoords } from '../utils/districts.js'
 import { resolveRangeStart, startOfDay } from '../utils/dates.js'
 
 const MAX_JOBS = 30
@@ -50,21 +51,6 @@ const legEligible = (parcel, riderDistrict) => {
   if (parcel.leg === 'pickup') return parcel.senderServiceCenter === riderDistrict
   if (parcel.leg === 'delivery') return parcel.receiverServiceCenter === riderDistrict
   return parcel.senderServiceCenter === riderDistrict
-}
-
-/**
- * Distance for a leg.
- *
- * Same as before: the parcel is offered in the district of the service centre
- * the rider will visit first, so this is distance from that centre to itself
- * (0) for now. Kept as one function so the day address-level coordinates exist,
- * one place changes.
- */
-const legDistanceKm = (parcel) => {
-  if (parcel.leg === 'delivery') {
-    return distanceBetweenDistricts(parcel.receiverServiceCenter, parcel.receiverServiceCenter)
-  }
-  return distanceBetweenDistricts(parcel.senderServiceCenter, parcel.senderServiceCenter)
 }
 
 /**
@@ -479,21 +465,17 @@ export const acceptJob = asyncHandler(async (req, res) => {
     })
   }
 
-  const leg = legOfParcel(parcel)
-  const distanceKm = legDistanceKm(parcel)
-  // A same-district rider carries the whole route, so their pool is the
-  // customer's own delivery cost. A cross-district leg has no customer price
-  // of its own - the customer paid once for the journey - so those legs fall
-  // back to the leg rate card inside the calculator.
-  const payout = calculateRiderPayout(rateCard, {
-    deliveryCost: parcel.leg ? null : parcel.deliveryCost,
-    distanceKm,
+  // The money and cash fields this rider must see for the leg they are taking
+  // over. Shared with the admin handover path (`adminReassignParcel`) so the
+  // two can never disagree about what a leg pays.
+  const { leg, distanceKm, payoutSnapshot, cod } = buildAssignmentFields({
+    parcel,
+    uid: req.user.uid,
+    name: rider.name,
+    payment,
+    rateCard,
     completedToday,
   })
-  const isCod = payment?.method === 'cod'
-  // COD is settled with the receiver, so only a delivery-side or same-district
-  // rider carries cash. A pickup-leg rider never holds the customer's money.
-  const collectsCash = leg !== 'pickup'
 
   const claimed = await Parcel.findOneAndUpdate(
     { _id: parcelId, 'assignedRider.uid': null, leg: parcel.leg },
@@ -506,34 +488,8 @@ export const acceptJob = asyncHandler(async (req, res) => {
         assignedAt: new Date(),
         acceptedAt: new Date(),
         distanceKm,
-        [`riderPayouts.${leg}`]: {
-          baseFare: payout.baseFare,
-          perKmRate: payout.perKmRate,
-          distanceKm: payout.distanceKm,
-          bonus: payout.bonus,
-          total: payout.total,
-          riderShare: payout.riderShare,
-          companyShare: payout.companyShare,
-          // Owner recorded on the leg itself: after a handoff the parcel's
-          // assignedRider moves on to the next rider.
-          rider: { uid: req.user.uid, name: rider.name },
-          status: 'pending',
-          batchId: '',
-          paidAt: null,
-          earnedAt: null,
-        },
-        // Cash needed is resolved at accept time, not at delivery time, so the
-        // rider knows before they pick up whether they must carry change.
-        // `collectedAt` is reset explicitly: a job that was cancelled and later
-        // re-claimed must not inherit a declaration from the previous attempt.
-        cod: collectsCash
-          ? {
-              required: isCod,
-              amount: isCod ? payment.amount || 0 : 0,
-              depositStatus: isCod ? 'pending' : 'not_required',
-              collectedAt: null,
-            }
-          : { required: false, amount: 0, depositStatus: 'not_required', collectedAt: null },
+        [`riderPayouts.${leg}`]: payoutSnapshot,
+        cod,
       },
     },
     { new: true }

@@ -29,14 +29,35 @@ export const requireEnv = (name) => {
  */
 export const normalizeBaseUrl = (url) => url.replace(/\/+$/, '')
 
+/**
+ * Splits a comma-separated list of origins, trims each entry, strips trailing
+ * slashes, and drops empty values.
+ *
+ * @param {string | undefined} value
+ * @returns {string[]}
+ */
+const parseOrigins = (value) =>
+  (value || '')
+    .split(',')
+    .map((origin) => normalizeBaseUrl(origin.trim()))
+    .filter(Boolean)
+
 export const env = {
   get port() {
     return Number(process.env.PORT) || 5000
   },
+  // Primary frontend URL, used for payment redirects.
   get frontendUrl() {
     return normalizeBaseUrl(requireEnv('FRONTEND_URL'))
   },
-  get allowedFrontendOrigin() {
-    return process.env.CLIENT_URL?.trim() || requireEnv('FRONTEND_URL')
+  // Every origin allowed by CORS: FRONTEND_URL plus any extra origins listed
+  // (comma-separated) in the optional CLIENT_URL.
+  get allowedFrontendOrigins() {
+    return [
+      ...new Set([
+        normalizeBaseUrl(requireEnv('FRONTEND_URL')),
+        ...parseOrigins(process.env.CLIENT_URL),
+      ]),
+    ]
   },
 }

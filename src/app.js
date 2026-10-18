@@ -31,6 +31,10 @@ export const createApp = () => {
     credentials: true
   }))
   
+  // Bulk shipment uploads carry a whole CSV file as one JSON string, which is
+  // larger than a typical request body. Give that path its own budget first;
+  // body-parser skips re-parsing a body that has already been consumed.
+  app.use('/api/merchant/parcels/bulk', express.json({ limit: '2mb' }))
   app.use(express.json({ limit: '100kb' }))
   app.use(express.urlencoded({ extended: true, limit: '100kb' }))
 

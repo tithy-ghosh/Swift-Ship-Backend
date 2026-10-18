@@ -81,6 +81,67 @@ export const toCsv = (columns, rows) => {
 export const csvBody = (columns, rows) => `\uFEFF${toCsv(columns, rows)}`
 
 /**
+ * Parses an RFC 4180 CSV document into a grid of strings.
+ *
+ * Tolerant by design, because the files come from merchants' spreadsheets:
+ * quotes (with doubled inner quotes, embedded commas and newlines), LF or CRLF
+ * line endings, a leading UTF-8 BOM, and ragged rows are all accepted. Blank
+ * rows survive parsing; callers that care (the bulk importer) skip them.
+ *
+ * @param {string} text
+ * @returns {string[][]} one array of cells per row
+ */
+export const parseCsv = (text) => {
+  const source = String(text || '').replace(/^\uFEFF/, '')
+  if (!source.trim()) return []
+
+  const rows = []
+  let row = []
+  let field = ''
+  let inQuotes = false
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i]
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (source[i + 1] === '"') {
+          field += '"'
+          i += 1
+        } else {
+          inQuotes = false
+        }
+      } else {
+        field += char
+      }
+    } else if (char === '"') {
+      inQuotes = true
+    } else if (char === ',') {
+      row.push(field)
+      field = ''
+    } else if (char === '\n') {
+      row.push(field)
+      rows.push(row)
+      row = []
+      field = ''
+    } else if (char === '\r') {
+      // Swallowed: CRLF's \n carries the row break.
+    } else {
+      field += char
+    }
+  }
+
+  row.push(field)
+  rows.push(row)
+
+  // A file that ends with a newline produces one empty trailing row; drop it.
+  const last = rows[rows.length - 1]
+  if (last.length === 1 && last[0] === '') rows.pop()
+
+  return rows
+}
+
+/**
  * A stable download filename, dated in Dhaka time so the admin's "today"
  * matches the data they just exported.
  *

@@ -22,6 +22,29 @@ const parcelSchema = new mongoose.Schema(
       default: 0,
     },
 
+    /**
+     * Which way the parcel is travelling.
+     *
+     *   'forward' - the normal booking: merchant/customer sends to a receiver.
+     *   'return'  - a reverse pickup (Feature 8): the original receiver sends
+     *               the goods back to the merchant, and `returnOf` links it to
+     *               the parcel it reverses.
+     *
+     * Documents created before returns existed read as `forward`.
+     */
+    direction: { type: String, enum: ['forward', 'return'], default: 'forward' },
+
+    /**
+     * Set only on return parcels: the original parcel, its tracking id and the
+     * reason the merchant gave. Denormalised so the returns list explains
+     * itself without a second lookup per row.
+     */
+    returnOf: {
+      trackingId: { type: String, default: '' },
+      parcelId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parcel', default: null },
+      reason: { type: String, default: '' },
+    },
+
     // Sender
     senderName: { type: String, required: true },
     senderContact: { type: String, required: true },
@@ -246,6 +269,10 @@ parcelSchema.index({ 'riderPayouts.pickup.status': 1, updatedAt: -1 })
 parcelSchema.index({ createdAt: -1 })
 parcelSchema.index({ 'riderPayouts.delivery.earnedAt': -1 })
 parcelSchema.index({ 'riderPayouts.pickup.earnedAt': -1 })
+// Returns: one merchant's return list, and the "does this original already
+// have an active return?" guard that runs on every merchant parcel read.
+parcelSchema.index({ 'createdBy.uid': 1, direction: 1, createdAt: -1 })
+parcelSchema.index({ 'returnOf.parcelId': 1, 'cancellation.cancelledAt': 1 })
 
 const Parcel = mongoose.model('Parcel', parcelSchema)
 

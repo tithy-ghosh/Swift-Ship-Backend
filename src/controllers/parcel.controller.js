@@ -5,8 +5,11 @@ import Payment from '../models/payment.model.js'
 import Tracking, { TRACKING_STATUSES } from '../models/tracking.model.js'
 import RiderApplication from '../models/riderApplication.model.js'
 import { calculateDeliveryCharge } from '../services/delivery-pricing.service.js'
-import { getLatestEvent } from '../services/rider-delivery.service.js'
+import { countCompletedDeliveries, getLatestEvent } from '../services/rider-delivery.service.js'
+import { buildAssignmentFields } from '../services/rider-assignment.service.js'
+import { getRiderRateCard } from '../services/rider-payout.service.js'
 import { generateTrackingId } from '../utils/tracking.js'
+import { startOfDay } from '../utils/dates.js'
 import { logAdminAction } from '../services/activity-log.service.js'
 
 const PARCEL_TYPES = new Set(['document', 'non-document'])
@@ -441,16 +444,47 @@ export const adminReassignParcel = asyncHandler(async (req, res) => {
     )
   }
 
-  await Parcel.updateOne(
-    { _id: parcel._id },
-    {
-      $set: {
-        assignedRider: { uid: rider.userId, name: rider.name },
-        assignedAt: new Date(),
-        acceptedAt: parcel.acceptedAt || new Date(),
-      },
-    }
-  )
+  /**
+   * The handover has to carry the same money and cash fields the rider's own
+   * accept writes. The payout snapshot is what the delivery screen, the
+   * completion credit and settlement all read; a reassigned parcel without
+   * one kept the schema default of all zeroes, so the rider who dropped it at
+   * the godown was credited ৳0.
+   */
+  const [payment, rateCard, completedToday] = await Promise.all([
+    Payment.findOne({ parcel: parcel._id }).select('method amount').lean(),
+    getRiderRateCard(),
+    countCompletedDeliveries(rider.userId, startOfDay()),
+  ])
+  const { leg, distanceKm, payoutSnapshot, cod } = buildAssignmentFields({
+    parcel,
+    uid: rider.userId,
+    name: rider.name,
+    payment,
+    rateCard,
+    completedToday,
+  })
+
+  const assignment = {
+    assignedRider: { uid: rider.userId, name: rider.name },
+    assignedAt: new Date(),
+    acceptedAt: parcel.acceptedAt || new Date(),
+    distanceKm,
+  }
+
+  // Never overwrite money the previous rider already finished the work for:
+  // `earnedAt` marks the leg as settled history, and repricing it here would
+  // erase the amount from their earnings. A live leg is the new rider's work
+  // and gets a fresh snapshot priced to the current card - which also replaces
+  // a stale snapshot that still names the previous rider.
+  if (!parcel.riderPayouts?.[leg]?.earnedAt) {
+    assignment[`riderPayouts.${leg}`] = payoutSnapshot
+    // Cash already declared collected belongs to the rider holding it; the
+    // fresh `cod` (which clears `collectedAt`) is only safe before that.
+    if (!parcel.cod?.collectedAt) assignment.cod = cod
+  }
+
+  await Parcel.updateOne({ _id: parcel._id }, { $set: assignment })
   await RiderApplication.updateOne(
     { userId: rider.userId },
     { $set: { currentParcel: parcel._id } }

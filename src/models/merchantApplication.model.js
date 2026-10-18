@@ -14,6 +14,19 @@ const merchantApplicationSchema = new mongoose.Schema(
     region: { type: String, required: true },
     district: { type: String, required: true },
     pickupAddress: { type: String, required: true },
+    // Feature 5 address book: extra pickup stops a merchant saves. The
+    // profile-level `pickupAddress` above stays as the fallback for merchants
+    // who never add one.
+    pickupAddresses: [
+      {
+        label: { type: String, default: '' },
+        region: { type: String, required: true },
+        district: { type: String, required: true },
+        address: { type: String, required: true },
+        contact: { type: String, default: '' },
+        isDefault: { type: Boolean, default: false },
+      },
+    ],
     monthlyOrders: { type: String, default: '' },
     website: { type: String, default: '' },
     needsCOD: { type: Boolean, default: true },

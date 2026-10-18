@@ -32,11 +32,12 @@ const escapeRegex = (term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * backend would reject with a 409.
  *
  * @param {object} parcel lean parcel document
- * @param {{payment?: object|null, currentStatus?: string|null, lastEventAt?: Date|null}} [runtime]
+ * @param {{payment?: object|null, currentStatus?: string|null, lastEventAt?: Date|null,
+ *          hasActiveReturn?: boolean}} [runtime]
  */
 export const serializeMerchantParcel = (
   parcel,
-  { payment = null, currentStatus = null, lastEventAt = null } = {}
+  { payment = null, currentStatus = null, lastEventAt = null, hasActiveReturn = false } = {}
 ) => {
   const status = currentStatus || 'pending'
   const isCod = payment?.method === 'cod'
@@ -90,6 +91,22 @@ export const serializeMerchantParcel = (
           cancelledAt: parcel.cancellation.cancelledAt,
         }
       : null,
+    /**
+     * Reverse pickups (Feature 8). `direction` drives the "Return" chip and
+     * `returnOf` links back to the parcel being reversed. `canRequestReturn`
+     * answers the server rule ("delivered, not itself a return, no active
+     * return yet") so the table only renders a working action.
+     */
+    direction: parcel.direction === 'return' ? 'return' : 'forward',
+    returnOf: parcel.returnOf?.trackingId
+      ? {
+          trackingId: parcel.returnOf.trackingId,
+          parcelId: parcel.returnOf.parcelId ? String(parcel.returnOf.parcelId) : null,
+          reason: parcel.returnOf.reason || '',
+        }
+      : null,
+    canRequestReturn:
+      status === 'delivered' && parcel.direction !== 'return' && !hasActiveReturn,
     createdAt: parcel.createdAt,
     updatedAt: parcel.updatedAt,
   }
@@ -99,11 +116,15 @@ export const serializeMerchantParcel = (
  * Joins payments and the latest tracking status onto lean parcels, then
  * serializes each one. The maps are keyed by parcel id because `parcel` on a
  * Payment is an ObjectId while `_id` on a Tracking aggregate row is too.
+ *
+ * A third read resolves which originals already have an active (uncancelled)
+ * return, so the serializer can rule out a duplicate "Request return" before
+ * the button renders - the create endpoint enforces the same rule again.
  */
 const attachRuntimeState = async (parcels) => {
   const parcelIds = parcels.map(({ _id }) => _id)
 
-  const [payments, statusRows] = await Promise.all([
+  const [payments, statusRows, activeReturns] = await Promise.all([
     Payment.find({ parcel: { $in: parcelIds } }).lean(),
     Tracking.aggregate([
       { $match: { parcel: { $in: parcelIds } } },
@@ -116,6 +137,12 @@ const attachRuntimeState = async (parcels) => {
         },
       },
     ]),
+    Parcel.find({
+      'returnOf.parcelId': { $in: parcelIds },
+      'cancellation.cancelledAt': null,
+    })
+      .select('returnOf.parcelId')
+      .lean(),
   ])
 
   const paymentByParcel = new Map(payments.map((item) => [String(item.parcel), item]))
@@ -125,28 +152,41 @@ const attachRuntimeState = async (parcels) => {
       { status: row.currentStatus, lastEventAt: row.lastEventAt },
     ])
   )
+  const originalsWithActiveReturn = new Set(
+    activeReturns.map((item) => String(item.returnOf?.parcelId))
+  )
 
   return parcels.map((parcel) => {
     const runtime = statusByParcel.get(String(parcel._id)) || null
+    const parcelId = String(parcel._id)
 
     return serializeMerchantParcel(parcel, {
-      payment: paymentByParcel.get(String(parcel._id)) || null,
+      payment: paymentByParcel.get(parcelId) || null,
       currentStatus: runtime?.status || null,
       lastEventAt: runtime?.lastEventAt || null,
+      hasActiveReturn: originalsWithActiveReturn.has(parcelId),
     })
   })
 }
 
 /**
  * Lists one merchant's own parcels, newest first, optionally narrowed by a
- * free-text term matched against tracking id, receiver name and phone.
+ * free-text term matched against tracking id, receiver name and phone, and/or
+ * by travel direction (`return` powers the returns page; `forward` is the
+ * inverse, since pre-return documents carry no `direction`).
  *
  * @param {string} uid Firebase uid of the merchant
- * @param {{search?: string}} [filters]
+ * @param {{search?: string, direction?: string}} [filters]
  */
-export const listMerchantParcels = async (uid, { search = '' } = {}) => {
+export const listMerchantParcels = async (uid, { search = '', direction = '' } = {}) => {
   const match = { 'createdBy.uid': uid }
   const term = String(search || '').trim()
+
+  if (direction === 'return') {
+    match.direction = 'return'
+  } else if (direction === 'forward') {
+    match.direction = { $ne: 'return' }
+  }
 
   if (term) {
     const pattern = new RegExp(escapeRegex(term), 'i')
@@ -238,6 +278,7 @@ export const buildMerchantSummary = (parcels, { recentLimit = 5 } = {}) => {
 /** Columns for the merchant parcel export, in spreadsheet order. */
 const EXPORT_COLUMNS = [
   { key: 'trackingId', label: 'Tracking ID' },
+  { key: 'returnOfTrackingId', label: 'Return of' },
   { key: 'status', label: 'Status' },
   { key: 'type', label: 'Type' },
   { key: 'title', label: 'Title' },
@@ -271,6 +312,7 @@ export const buildMerchantParcelsExport = async (uid, { status } = {}) => {
 
   const rows = filtered.slice(0, MAX_MERCHANT_EXPORT_ROWS).map((parcel) => ({
     trackingId: parcel.trackingId,
+    returnOfTrackingId: parcel.returnOf?.trackingId || '',
     status: parcel.status,
     type: parcel.type,
     title: parcel.title,
