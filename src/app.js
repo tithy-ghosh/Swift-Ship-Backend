@@ -18,10 +18,9 @@ export const createApp = () => {
   const app = express()
 
   app.disable('x-powered-by')
-  
-  // ✅ UPDATED CORS: Explicitly allow Authorization header
-  app.use(cors({ 
-    origin: env.allowedFrontendOrigin,
+
+  app.use(cors({
+    origin: env.allowedFrontendOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     // The admin CSV export names its file in Content-Disposition; without this
@@ -30,11 +29,7 @@ export const createApp = () => {
     exposedHeaders: ['Content-Disposition'],
     credentials: true
   }))
-  
-  // Bulk shipment uploads carry a whole CSV file as one JSON string, which is
-  // larger than a typical request body. Give that path its own budget first;
-  // body-parser skips re-parsing a body that has already been consumed.
-  app.use('/api/merchant/parcels/bulk', express.json({ limit: '2mb' }))
+
   app.use(express.json({ limit: '100kb' }))
   app.use(express.urlencoded({ extended: true, limit: '100kb' }))
 
@@ -52,7 +47,7 @@ export const createApp = () => {
   app.use('/api/merchant-applications', merchantApplicationRoutes)
   app.use('/api/merchant', merchantRoutes)
   app.use('/api/admin', adminRoutes)
-  app.use('/api/settings', settingRoutes);
+  app.use('/api/settings', settingRoutes)
   app.use(notFoundHandler)
   app.use(errorHandler)
 
