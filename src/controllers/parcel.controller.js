@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import asyncHandler from '../middleware/asyncHandler.js'
 import Parcel from '../models/parcel.model.js'
 import Payment from '../models/payment.model.js'
+import Setting from '../models/setting.model.js'
 import Tracking, { TRACKING_STATUSES } from '../models/tracking.model.js'
 import RiderApplication from '../models/riderApplication.model.js'
 import { calculateDeliveryCharge } from '../services/delivery-pricing.service.js'
@@ -91,6 +92,16 @@ export const createParcel = async (req, res) => {
   }
   if (!PAYMENT_METHODS.has(paymentMethod)) {
     return res.status(400).json({ error: 'paymentMethod must be cod or online' })
+  }
+
+  // The public booking page is gated too, but the API is the authority: a
+  // direct request must not create a parcel while the switch is off.
+  const settings = await Setting.findOne().select('system.allowNewParcelBookings').lean()
+  if (settings?.system?.allowNewParcelBookings === false) {
+    return res.status(403).json({
+      error: 'New parcel bookings are currently paused. Please try again later.',
+      code: 'BOOKINGS_PAUSED',
+    })
   }
 
   const pricing = await calculateDeliveryCharge({

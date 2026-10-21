@@ -57,7 +57,7 @@ collected address data if postcode fields are added later.
 - `/` — health check
 
 Errors are returned as `{ "error": "message" }`. Unexpected server errors are
-logged internally and exposed to clients only as `Internal server error`.
+exposed to clients only as `Internal server error`.
 
 ## Tracking API
 

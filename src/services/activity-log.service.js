@@ -10,9 +10,7 @@ import ActivityLog from '../models/activityLog.model.js';
  *
  * It is fire-and-forget: the action itself has already succeeded by the time
  * this runs, and a failure to write the audit entry must never turn a
- * completed action into an error response for the admin. Failures are logged
- * with full context so they are visible in the server console instead of
- * being silently swallowed.
+ * completed action into an error response for the admin.
  *
  * @param {{actorUid: string, actorName: string, action: string,
  *          targetType?: string, targetId?: string, targetName?: string,
@@ -37,13 +35,8 @@ export const logAdminAction = async ({
       targetName: targetName || '',
       details: details || {},
     });
-  } catch (error) {
-    // Never silently swallow an audit-log failure: log it with full context
-    // so it is visible in the server console. The parent action has already
-    // succeeded, so we do not re-throw and break the admin's flow.
-    console.error(
-      'Failed to record activity log entry:',
-      { action, targetType, targetId, error }
-    );
+  } catch {
+    // The parent action has already succeeded, so an audit-log failure must
+    // not break the admin's flow.
   }
 };

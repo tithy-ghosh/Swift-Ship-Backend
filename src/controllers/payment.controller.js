@@ -263,8 +263,7 @@ export const handlePaymentSuccess = async (req, res) => {
     return res.redirect(
       getPaymentRedirectUrl({ payment: 'success', tracking: parcel.parcel.trackingId })
     )
-  } catch (error) {
-    console.error('Payment success callback failed:', error)
+  } catch {
     return res.redirect(getPaymentRedirectUrl({ payment: 'error' }))
   }
 }

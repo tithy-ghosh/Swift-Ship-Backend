@@ -24,14 +24,7 @@ const upload = multer({
 
 // POST /api/upload/profile-picture
 router.post('/profile-picture', verifyToken, upload.single('image'), asyncHandler(async (req, res) => {
-  console.log('📸 Upload request received');
-  console.log('User from token:', req.user);
-  console.log('File received:', req.file?.originalname);
-  console.log('File size:', req.file?.size);
-  console.log('File mimetype:', req.file?.mimetype);
-  
   if (!req.file) {
-    console.error('❌ No file in request');
     return res.status(400).json({ error: 'No image file provided' });
   }
 
@@ -40,8 +33,6 @@ router.post('/profile-picture', verifyToken, upload.single('image'), asyncHandle
     const b64 = Buffer.from(req.file.buffer).toString('base64');
     const dataURI = `data:${req.file.mimetype};base64,${b64}`;
 
-    console.log('Uploading to Cloudinary...');
-    
     const result = await cloudinary.uploader.upload(dataURI, {
       folder: 'swift-ship/profiles',
       public_id: `${req.user.uid}_profile`,
@@ -51,16 +42,11 @@ router.post('/profile-picture', verifyToken, upload.single('image'), asyncHandle
       ],
     });
 
-    console.log('✅ Cloudinary upload successful');
-    console.log('Image URL:', result.secure_url);
-
     res.status(200).json({
       url: result.secure_url,
       public_id: result.public_id,
     });
-  } catch (error) {
-    console.error('❌ Cloudinary upload error:', error.message);
-    console.error('Full error:', error);
+  } catch {
     res.status(500).json({ error: 'Failed to upload image to Cloudinary' });
   }
 }));
@@ -96,8 +82,7 @@ router.post('/document', verifyToken, upload.single('image'), asyncHandler(async
       public_id: result.public_id,
       documentType,
     });
-  } catch (error) {
-    console.error('❌ Cloudinary upload error:', error.message);
+  } catch {
     res.status(500).json({ error: 'Failed to upload document to Cloudinary' });
   }
 }));

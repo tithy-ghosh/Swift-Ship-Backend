@@ -394,7 +394,6 @@ export const listNearbyJobs = asyncHandler(async (req, res) => {
   const jobs = parcels
     .map((parcel) => {
       const distanceKm = legDistanceKm(parcel)
-      const leg = legOfParcel(parcel)
       const job = serializeJob(parcel, INITIAL_DELIVERY_STATUS)
 
       return {
@@ -772,7 +771,6 @@ export const updateDeliveryStatus = asyncHandler(async (req, res) => {
 export const reportIssue = asyncHandler(async (req, res) => {
   const { parcelId } = req.params
   const { reason, note } = req.body
-  const rider = req.rider
 
   const parcel = await Parcel.findById(parcelId).lean()
   if (!parcel) {
@@ -1356,6 +1354,10 @@ export const submitRiderDocuments = asyncHandler(async (req, res) => {
     $set: {
       [`documents.${documentType}.url`]: url,
       [`documents.${documentType}.status`]: 'pending',
+      // A replacement starts a new review; the previous rejection no longer
+      // describes the uploaded file.
+      [`documents.${documentType}.rejectedAt`]: null,
+      [`documents.${documentType}.rejectedReason`]: '',
       documentsStatus: 'pending',
     },
   })
@@ -1383,62 +1385,6 @@ export const getRiderDocuments = asyncHandler(async (req, res) => {
     documents: rider.documents,
     documentsStatus: rider.documentsStatus,
     applicationStatus: rider.status,
-  })
-})
-
-/** PATCH /api/admin/rider-documents/:userId/:documentType
- *
- * Admin verifies or rejects a rider's document.
- *
- * @param {string} req.params.userId - Firebase UID of the rider
- * @param {string} req.params.documentType - nid, license, or bikeRegistration
- * @param {string} req.body.action - 'verify' or 'reject'
- * @param {string} [req.body.reason] - rejection reason
- */
-export const verifyRiderDocument = asyncHandler(async (req, res) => {
-  const { userId, documentType } = req.params
-  const { action, reason } = req.body
-
-  const validTypes = ['nid', 'license', 'bikeRegistration']
-  if (!validTypes.includes(documentType)) {
-    return res.status(400).json({ error: 'Invalid document type.' })
-  }
-  if (action !== 'verify' && action !== 'reject') {
-    return res.status(400).json({ error: "Action must be 'verify' or 'reject'." })
-  }
-
-  const rider = await RiderApplication.findOne({ userId })
-  if (!rider) {
-    return res.status(404).json({ error: 'No rider application found.' })
-  }
-
-  const update = {
-    [`documents.${documentType}.status`]: action === 'verify' ? 'verified' : 'rejected',
-  }
-
-  if (action === 'reject') {
-    update[`documents.${documentType}.rejectedAt`] = new Date()
-    update[`documents.${documentType}.rejectedReason`] = reason || ''
-  }
-
-  const updated = await RiderApplication.findByIdAndUpdate(rider._id, { $set: update }, { new: true })
-
-  // Recompute overall documentsStatus
-  const docs = updated.documents
-  const allVerified = Object.values(docs).every((d) => d.status === 'verified')
-  const anyRejected = Object.values(docs).some((d) => d.status === 'rejected')
-  const anyPending = Object.values(docs).some((d) => d.status === 'pending')
-
-  let documentsStatus = 'pending'
-  if (allVerified) documentsStatus = 'verified'
-  else if (anyRejected) documentsStatus = 'rejected'
-
-  await RiderApplication.findByIdAndUpdate(updated._id, { $set: { documentsStatus } })
-
-  res.json({
-    documentType,
-    status: action === 'verify' ? 'verified' : 'rejected',
-    documentsStatus,
   })
 })
 

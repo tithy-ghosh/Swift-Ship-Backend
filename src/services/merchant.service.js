@@ -63,7 +63,6 @@ export const serializeMerchantParcel = (
     receiverAddress: parcel.receiverAddress || '',
     deliveryInstruction: parcel.deliveryInstruction || '',
     deliveryCost: parcel.deliveryCost,
-    deliveryZone: parcel.deliveryZone,
     status,
     /**
      * When the newest tracking event happened. For a delivered parcel this is

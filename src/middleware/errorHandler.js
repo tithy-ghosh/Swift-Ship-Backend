@@ -6,17 +6,14 @@ export const notFoundHandler = (req, res) => {
 }
 
 /**
- * Final Express error boundary. Internal details are logged on the server but
- * are not exposed to clients.
+ * Final Express error boundary. Internal details are not exposed to clients.
  *
  * @type {import('express').ErrorRequestHandler}
  */
-export const errorHandler = (error, req, res, next) => {
+export const errorHandler = (error, _req, res, next) => {
   if (res.headersSent) {
     return next(error)
   }
-
-  console.error(`[${req.method} ${req.originalUrl}]`, error)
 
   const statusCode =
     error.name === 'MulterError'

@@ -10,27 +10,13 @@ import { env } from './config/env.js'
 const startServer = async () => {
   await connectDatabase()
 
-  const server = app.listen(env.port, () => {
-    console.log(`Server running on http://localhost:${env.port}`)
-  })
+  const server = app.listen(env.port)
 
-  server.on('error', (error) => {
-    if (error.code === 'EADDRINUSE') {
-      console.error(`Port ${env.port} is already in use. Stop the existing server and try again.`)
-    } else {
-      console.error('HTTP server failed:', error)
-    }
+  server.on('error', () => {
     process.exit(1)
   })
 }
 
-startServer().catch((error) => {
-  if (error.name === 'MongooseServerSelectionError') {
-    console.error(
-      'MongoDB Atlas is unreachable after multiple attempts. Check that the cluster is running and that the current network allows outbound TCP port 27017.'
-    )
-  } else {
-    console.error(`Server startup failed: ${error.message}`)
-  }
+startServer().catch(() => {
   process.exit(1)
 })

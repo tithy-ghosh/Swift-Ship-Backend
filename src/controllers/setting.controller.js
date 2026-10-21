@@ -227,7 +227,7 @@ export const updateSystemSettings = asyncHandler(async (req, res) => {
  */
 export const getPublicSettings = asyncHandler(async (req, res) => {
   const settings = await Setting.findOne().select(
-    'appInfo system.maintenanceMode system.maintenanceMessage businessHours'
+    'appInfo system.maintenanceMode system.maintenanceMessage system.allowNewRegistrations system.allowNewParcelBookings businessHours'
   );
 
   return res.status(200).json(settings || {});

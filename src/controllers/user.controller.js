@@ -1,4 +1,5 @@
 import User from '../models/user.model.js'
+import Setting from '../models/setting.model.js'
 import { logAdminAction } from '../services/activity-log.service.js'
 
 /**
@@ -11,6 +12,20 @@ export const createUser = async (req, res) => {
 
   if (!uid || !email) {
     return res.status(400).json({ error: 'The authenticated account must have a uid and email' })
+  }
+
+  // Login also calls this endpoint to refresh lastLoginAt, so only apply the
+  // registration switch when the profile does not exist yet. Default to open
+  // when the settings document or field is missing.
+  const existingUser = await User.exists({ uid })
+  if (!existingUser) {
+    const settings = await Setting.findOne().select('system.allowNewRegistrations').lean()
+    if (settings?.system?.allowNewRegistrations === false) {
+      return res.status(403).json({
+        error: 'New registrations are currently closed. Please try again later.',
+        code: 'REGISTRATIONS_CLOSED',
+      })
+    }
   }
 
   const safeName = String(name || tokenName || email.split('@')[0]).trim().slice(0, 100)
@@ -109,8 +124,7 @@ export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 });
     return res.status(200).json(users);
-  } catch (error) {
-    console.error('Error fetching users:', error);
+  } catch {
     return res.status(500).json({ error: 'Failed to fetch users' });
   }
 }
@@ -157,8 +171,7 @@ export const deleteUser = async (req, res) => {
 
     return res.status(200).json({ message: 'User deleted successfully' });
     
-  } catch (error) {
-    console.error('Error deleting user:', error);
+  } catch {
     return res.status(500).json({ error: 'Failed to delete user' });
   }
 }
@@ -218,8 +231,7 @@ export const updateUserRole = async (req, res) => {
       message: 'User role updated successfully',
       user: userToUpdate 
     });
-  } catch (error) {
-    console.error('Error updating user role:', error);
+  } catch {
     return res.status(500).json({ error: 'Failed to update user role' });
   }
 }

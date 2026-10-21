@@ -24,7 +24,6 @@ const connectDatabase = async () => {
         family: 4,
         serverSelectionTimeoutMS: 10000,
       })
-      console.log('MongoDB connected')
       return connection
     } catch (error) {
       const hasAnotherResolver = index < dnsResolvers.length - 1

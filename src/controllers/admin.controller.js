@@ -1514,32 +1514,3 @@ export const deleteAnnouncement = asyncHandler(async (req, res) => {
   res.json({ message: 'Announcement deleted' })
 })
 
-/** GET /api/announcements/active?target=
- *
- * Public endpoint for riders/customers to fetch active announcements.
- * No authentication required.
- */
-export const getActiveAnnouncements = asyncHandler(async (req, res) => {
-  const { target } = req.query
-  const now = new Date()
-
-  const match = {
-    isActive: true,
-    $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
-  }
-  if (target) match.target = target
-
-  const announcements = await Announcement.find(match)
-    .sort({ createdAt: -1 })
-    .lean()
-
-  res.json({
-    announcements: announcements.map((a) => ({
-      id: String(a._id),
-      title: a.title,
-      body: a.body,
-      target: a.target,
-      createdAt: a.createdAt,
-    })),
-  })
-})
